@@ -83,20 +83,40 @@ function totals(room) {
   return t;
 }
 
-/* Each filled answer starts at POINTS. Every other player who votes it invalid
-   takes away an equal share. Players who are gone and never voted don't count. */
+/* Two answers count as the same when they match after ignoring capitals,
+   spaces, punctuation and accents: "New York", "new york" and "NewYork!" match. */
+function answerKey(a) {
+  const s = String(a || '').trim();
+  return s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') || s.toLowerCase();
+}
+
+/* People who wrote the same answer split the POINTS between them, rounded down,
+   never below 1: one person 10, two 5 each, three 3, four or five 2, six or more 1. */
+const shareOf = n => Math.max(1, Math.floor(POINTS / Math.max(1, n)));
+
+/* Each filled answer starts at its share. Every other player who votes it invalid
+   takes away an equal part of that share. Players who are gone and never voted don't count. */
 function scoreRound(room) {
   const res = {};
   const n = room.settings.categories.length;
   const all = [...room.players.values()];
+  const counts = Array.from({ length: n }, (_, ci) => {
+    const m = new Map();
+    for (const p of all) {
+      const a = (p.answers[ci] || '').trim();
+      if (a) { const k = answerKey(a); m.set(k, (m.get(k) || 0) + 1); }
+    }
+    return m;
+  });
   for (const p of all) {
     res[p.pid] = Array.from({ length: n }, (_, ci) => {
       const a = (p.answers[ci] || '').trim();
       if (!a) return 0;
+      const share = shareOf(counts[ci].get(answerKey(a)));
       const voters = all.filter(v => v.pid !== p.pid && (isOn(v) || v.invalid.size > 0));
-      if (!voters.length) return POINTS;
+      if (!voters.length) return share;
       const inv = voters.filter(v => v.invalid.has(p.pid + '|' + ci)).length;
-      return Math.round(POINTS * (voters.length - inv) / voters.length);
+      return Math.round(share * (voters.length - inv) / voters.length);
     });
   }
   return res;
