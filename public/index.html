@@ -103,6 +103,9 @@ main{min-width:0;display:flex;flex-direction:column;gap:16px}
 .stopwrap{filter:drop-shadow(0 6px 10px rgba(0,0,0,.18))}
 
 .actionbar{position:sticky;bottom:0;z-index:5;display:flex;align-items:center;gap:12px 16px;flex-wrap:wrap;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));background:var(--sheet);border:1px solid var(--rule);border-radius:var(--r);box-shadow:var(--shadow)}
+.actionbar.static{position:static}
+.advance{color:var(--ink);font-weight:700}
+.waiter small{color:var(--ink-soft)}
 .stopnote{display:flex;flex-direction:column;min-width:0}
 .stopnote strong{font-size:1.05rem}
 
@@ -310,12 +313,14 @@ const nameOf = pid => {
   return (p && p.name) || (S.st && S.st.names && S.st.names[pid]) || 'Someone';
 };
 const armed = (act, id) => S.arm && S.arm.act === act && S.arm.id === id && Date.now() - S.arm.at < 3500;
-const normFirst = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/^[^A-Z0-9]+/, '').charAt(0);
+const normFirst = s => String(s).normalize('NFD').replace(/\p{M}/gu, '').toUpperCase().replace(/^[^A-Z0-9]+/, '').charAt(0);
 // Same matching rule as the server: capitals, spaces, punctuation and accents don't count.
 function answerKey(a) {
   const s = String(a || '').trim();
-  return s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') || s.toLowerCase();
+  return s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') || s.toLowerCase();
 }
+// Still in the game: connected, or dropped out a moment ago and expected back.
+const isHere = p => (p.present !== undefined ? p.present : p.connected);
 function listNames(names) {
   if (names.length <= 1) return names.join('');
   return names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
@@ -359,13 +364,39 @@ function emit(event, payload) {
     socket.timeout(8000).emit(event, payload || {}, (err, res) => resolve(err ? { ok: false, error: 'The server didn’t answer. Try again.' } : (res || { ok: false })));
   });
 }
+function joinedGame(code) {
+  S.code = code; S.homeError = '';
+  if (location.pathname !== '/' + code) history.replaceState(null, '', '/' + code);
+  // Send anything typed while the connection was down.
+  if (S.st && S.st.phase === 'playing') sendAnswers(true);
+}
+// The server restarted and forgot the game: send back the last state this page saw.
+async function restoreGame(name) {
+  const st = S.st;
+  const snap = {
+    hostPid: st.hostPid, phase: st.phase, settings: st.settings, round: st.round, letter: st.letter,
+    usedLetters: st.usedLetters, history: st.history, names: st.names, stoppedBy: st.stoppedBy, stopReason: st.stopReason,
+    players: st.players.map(p => ({ pid: p.pid, name: p.name, answers: p.answers, invalid: p.invalid }))
+  };
+  const res = await emit('restore', { code: st.code, name, pid: PID, secret: SECRET, snap });
+  if (res.ok) {
+    joinedGame(res.code);
+    toast('The server restarted, but your game is back.');
+  } else {
+    S.joined = false; S.st = null; S.code = ''; S.built = '';
+    history.replaceState(null, '', '/');
+    S.homeError = res.error || 'That game was lost when the server restarted. Start a new one.';
+  }
+  render();
+}
 async function join(code, name, quiet) {
   S.joining = true;
   const res = await emit('join', { code, name, pid: PID, secret: SECRET });
   S.joining = false;
   if (res.ok) {
-    S.code = res.code; S.homeError = '';
-    if (location.pathname !== '/' + res.code) history.replaceState(null, '', '/' + res.code);
+    joinedGame(res.code);
+  } else if (res.gone && S.st && S.st.code === code) {
+    return restoreGame(name);
   } else {
     S.joined = false; S.st = null;
     if (res.gone) { S.code = ''; history.replaceState(null, '', '/'); }
@@ -666,23 +697,30 @@ function renderReview(main, st) {
     }).join('');
     return `<section class="cat-card"><h3><span>${esc(c)}</span><span class="cat-letter">${esc(L)}</span></h3><ul>${rows}</ul></section>`;
   }).join('');
-  const here = players.filter(p => p.connected);
+  const here = players.filter(isHere);
   const ready = here.filter(p => p.ready);
   const waiting = here.filter(p => !p.ready);
   const meReady = !!(me() && me().ready);
   const host = isHost();
   const waitHTML = waiting.length
-    ? '<span>Waiting for:</span>' + waiting.map(p => `<span class="waiter"><b>${esc(p.name)}</b></span>`).join('')
+    ? '<span>Waiting for:</span>' + waiting.map(p => `<span class="waiter"><b>${esc(p.name)}</b>${p.connected ? '' : ' <small>(reconnecting)</small>'}</span>`).join('')
       + (host && waiting.some(p => p.pid !== st.you) ? ` <button type="button" class="linkbtn${armed('skip', '') ? ' armed' : ''}" data-act="skip">${armed('skip', '') ? 'Tap again to skip waiting' : 'Skip waiting'}</button>` : '')
-    : 'Everyone’s ready. Next letter coming up…';
+    : `<span id="advanceNote" class="advance">${esc(advanceText(st))}</span>`;
   keepFocus(main, () => {
     main.innerHTML = `${stamp}${cards}
-    <div class="actionbar">
+    <div class="actionbar static">
       <button type="button" class="btn big${meReady ? '' : ' primary'}" data-act="ready" aria-pressed="${meReady}">${meReady ? 'Ready ✓ (tap to undo)' : (last ? 'Vote to see final scores' : 'Vote to continue')}</button>
       <div class="readycount"><strong>${ready.length}/${here.length}</strong> ready</div>
       <div class="waiting">${waitHTML}</div>
     </div>`;
   });
+}
+
+function advanceText(st) {
+  const last = st.round >= st.settings.rounds;
+  if (!st.advanceAt) return 'Everyone’s ready.';
+  const s = Math.max(1, Math.ceil((st.advanceAt - now()) / 1000));
+  return `Everyone’s ready. ${last ? 'Final scores' : 'Next letter'} in ${s}… Tap Ready to undo.`;
 }
 
 /* final */
@@ -730,7 +768,7 @@ function renderSide(st) {
   const items = st.players.map(p => {
     let stat = '<span></span>';
     if (st.phase === 'playing' || st.phase === 'collecting') stat = `<span class="pstat">${p.filled}/${st.settings.categories.length}</span>`;
-    else if (st.phase === 'review') stat = p.ready ? '<span class="pstat ready">ready</span>' : `<span class="pstat">${p.connected ? 'voting' : 'away'}</span>`;
+    else if (st.phase === 'review') stat = p.ready ? '<span class="pstat ready">ready</span>' : `<span class="pstat">${p.connected ? 'voting' : (isHere(p) ? 'reconnecting' : 'away')}</span>`;
     else if (st.phase === 'lobby' && !p.connected) stat = '<span class="pstat">away</span>';
     const kick = host && p.pid !== st.you && st.phase !== 'final'
       ? ` <button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
@@ -821,13 +859,14 @@ document.addEventListener('click', async e => {
       const has = (m.invalid || []).includes(k);
       m.invalid = has ? m.invalid.filter(x => x !== k) : [...(m.invalid || []), k];
       render();
-      emit('vote', { target, ci: Number(ci), invalid: !has });
+      // If the server turns the click down, it sends back the real state, which undoes it here.
+      emit('vote', { target, ci: Number(ci), invalid: !has }).then(r => { if (!r.ok && r.error) toast(r.error); });
       break;
     }
     case 'ready': {
       const m = me(); if (!m) break;
       m.ready = !m.ready; render();
-      emit('ready', { ready: m.ready });
+      emit('ready', { ready: m.ready }).then(r => { if (!r.ok && r.error) toast(r.error); });
       break;
     }
     case 'skip': if (armed('skip', '')) { S.arm = null; emit('skip'); } else arm('skip', ''); break;
@@ -883,6 +922,7 @@ window.addEventListener('popstate', () => { S.code = codeFromUrl(); if (!S.st) {
 setInterval(() => {
   const st = S.st;
   if (st && (st.phase === 'playing' || st.phase === 'collecting') && S.built.startsWith('play:')) { updateTimer(st); updatePlay(st); }
+  if (st && st.phase === 'review' && st.advanceAt) setText('advanceNote', advanceText(st));
   if (S.arm && Date.now() - S.arm.at >= 3500) { S.arm = null; render(); }
 }, 200);
 
