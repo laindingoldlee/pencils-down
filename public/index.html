@@ -136,7 +136,7 @@ main{min-width:0;display:flex;flex-direction:column;gap:16px}
 .linkline code{font-size:.95rem;background:var(--hilite);padding:6px 10px;border-radius:6px;overflow-wrap:anywhere;min-width:0;user-select:all}
 .setting{display:flex;align-items:center;justify-content:space-between;gap:10px 16px;padding:14px 20px;border-bottom:1px solid var(--rule);flex-wrap:wrap}
 .setting:last-child{border-bottom:0}
-.setting.stack{flex-direction:column;align-items:stretch}
+.setting.stack{flex-direction:column;align-items:stretch;flex-wrap:nowrap}
 .label{font-weight:700}
 .stepper{display:flex;align-items:center;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden}
 .stepper button{width:42px;height:40px;border:0;background:transparent;font-size:1.3rem;font-weight:700}
@@ -153,11 +153,13 @@ main{min-width:0;display:flex;flex-direction:column;gap:16px}
 .presets{display:flex;flex-wrap:wrap;gap:6px;align-items:center;font-size:.9rem}
 .presets button{border:1px dashed var(--rule-strong);background:none;border-radius:999px;padding:4px 10px;font-size:.88rem}
 .presets button:hover{border-color:var(--ink)}
-.lettergrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px}
+.lettergrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(38px,1fr));gap:6px;align-content:start}
 .lettergrid button{font-family:var(--font-display);height:38px;border-radius:6px;border:1.5px solid var(--rule-strong);background:transparent;color:var(--ink-soft);font-size:.95rem}
 .lettergrid button[aria-pressed="true"]{background:var(--mark);border-color:var(--mark);color:var(--on-mark);box-shadow:inset 0 -3px 0 var(--mark-deep)}
 .lettergrid button:disabled{cursor:default}
 .rule{margin:0;max-width:62ch}
+.rules{padding-left:1.2em;display:grid;gap:4px}
+.meta .dup{color:var(--ink);font-weight:700}
 
 /* side */
 .side{display:flex;flex-direction:column;gap:14px;min-width:0}
@@ -309,6 +311,15 @@ const nameOf = pid => {
 };
 const armed = (act, id) => S.arm && S.arm.act === act && S.arm.id === id && Date.now() - S.arm.at < 3500;
 const normFirst = s => String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/^[^A-Z0-9]+/, '').charAt(0);
+// Same matching rule as the server: capitals, spaces, punctuation and accents don't count.
+function answerKey(a) {
+  const s = String(a || '').trim();
+  return s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '') || s.toLowerCase();
+}
+function listNames(names) {
+  if (names.length <= 1) return names.join('');
+  return names.slice(0, -1).join(', ') + ' & ' + names[names.length - 1];
+}
 
 /* ---------- connection ---------- */
 const socket = io();
@@ -509,7 +520,12 @@ function renderLobby(main, st) {
         <div class="presets" id="presets"></div>` : ''}</div>
       <div class="setting stack"><span class="label">Letters that can come up</span><div class="lettergrid" id="letterGrid"></div></div>
       <div class="setting stack"><span class="label">Scoring</span>
-        <p class="rule">Every filled answer starts at 10 points. Each other player can vote it invalid, and every invalid vote takes away its share. If everyone else votes it invalid, it scores 0. Blank boxes score 0.</p></div>
+        <ul class="rule rules">
+          <li>An answer nobody else wrote scores <b>10</b>.</li>
+          <li>The same answer as someone else? You split the 10: two people get <b>5</b> each, three get <b>3</b>, four or five get <b>2</b>, six or more get <b>1</b>. Capitals, spaces and punctuation don’t matter, so “New York” and “new york” match.</li>
+          <li>Each other player can vote an answer invalid, and every invalid vote takes away its share. If everyone else votes it invalid, it scores 0.</li>
+          <li>Blank boxes score 0.</li>
+        </ul></div>
     </section>`;
   }
   const set = st.settings;
@@ -623,6 +639,14 @@ function renderReview(main, st) {
     ? `<div class="stamp stop">${esc(nameOf(st.stoppedBy))} said STOP!</div>`
     : `<div class="stamp time">Time’s up!</div>`;
   const cards = st.settings.categories.map((c, ci) => {
+    const groups = new Map();
+    for (const p of players) {
+      const a = String((p.answers || [])[ci] || '').trim();
+      if (!a) continue;
+      const g = answerKey(a);
+      if (!groups.has(g)) groups.set(g, []);
+      groups.get(g).push(p);
+    }
     const rows = players.map(p => {
       const a = String((p.answers || [])[ci] || '').trim();
       const k = p.pid + '|' + ci;
@@ -630,6 +654,8 @@ function renderReview(main, st) {
       const pts = ((st.projected || {})[p.pid] || [])[ci] || 0;
       const meta = [];
       if (a && normFirst(a) !== L) meta.push(`<span class="warn">Doesn’t start with ${esc(L)}</span>`);
+      const same = a ? groups.get(answerKey(a)).filter(o => o.pid !== p.pid) : [];
+      if (same.length) meta.push(`<span class="dup">Same as ${listNames(same.map(o => o.pid === st.you ? 'you' : esc(o.name)))} · split ${same.length + 1} ways</span>`);
       if (a && voters.length) meta.push('Invalid: ' + voters.map(v => esc(v.name)).join(', '));
       let action = '<span></span>';
       if (p.pid === st.you) action = '<span class="yours">Your answer</span>';
