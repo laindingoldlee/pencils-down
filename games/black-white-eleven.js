@@ -192,7 +192,7 @@ function flip(g, owner, tile, credit) {
     streak = g.turn.streak[credit] = (g.turn.streak[credit] || 0) + 1;
   }
   log(g, { k: 'kill', pid: owner, by: credit !== owner ? credit : null, streak });
-  g.ctx.fx({ type: 'kill', pid: owner, by: credit !== owner ? credit : null, streak });
+  g.ctx.fx({ type: 'kill', pid: owner, by: credit !== owner ? credit : null, streak, bluff: !!g.bluffing });
 }
 function flipRandom(g, owner, count, credit) {
   const hidden = g.hands[owner].filter(t => !t.up);
@@ -331,6 +331,8 @@ function verdict(g, call) {
   }
   const stake = g.pot;
   g.pot = 1;
+  g.bluffing = true; // knock-outs from here on were caused by a called bluff
+  try {
   if (gu.lie) {
     g.liesCaught += 1;
     const tile = g.hands[defender].find(x => x.id === gu.id);
@@ -338,14 +340,14 @@ function verdict(g, call) {
     g.ctx.fx({ type: 'bluff', caught: true, pid: defender, by: t.pid, stake });
     flip(g, defender, tile, t.pid);
     flipRandom(g, defender, stake, t.pid);
-    afterRight(g);
   } else {
     log(g, Object.assign(base, { res: 'truth', stake }));
     g.ctx.fx({ type: 'bluff', caught: false, pid: t.pid, by: defender, stake });
     penalty(g, defender);
     flipRandom(g, t.pid, stake, defender);
-    nextTurn(g);
   }
+  } finally { g.bluffing = false; }
+  if (gu.lie) afterRight(g); else nextTurn(g);
   return { ok: true };
 }
 

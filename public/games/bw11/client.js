@@ -267,8 +267,8 @@ function overHTML(g, st) {
 }
 
 /* ---------- announcer ---------- */
-const STREAK = ['', 'SINGLE KILL', 'DOUBLE KILL', 'TRIPLE KILL', 'QUADRA KILL', 'RAMPAGE'];
-const SOUND = ['', 'single-kill', 'double-kill', 'triple-kill', 'quadra-kill', 'rampage'];
+const STREAK = ['', 'SINGLE KILL', 'DOUBLE KILL', 'TRIPLE KILL', 'QUADRA KILL', 'GODLIKE'];
+const SOUND = ['', 'single-kill', 'double-kill', 'triple-kill', 'quadra-kill', 'godlike'];
 function banner(big, small, gold) {
   document.querySelectorAll('.bw-banner').forEach(e => e.remove());
   const b = document.createElement('div');
@@ -310,11 +310,11 @@ function boom(level) {
     }
   } catch (e) { /* no sound available */ }
 }
-function playKill(streak) {
-  const lvl = Math.max(1, Math.min(5, streak || 1));
-  const src = ((H.catalog.bw11 || {}).sounds || {})[SOUND[lvl]];
-  boom(lvl);
-  if (src) { try { const a = new Audio(src); a.play().catch(() => {}); } catch (e) {} }
+/* Play the recorded announcer line if there is one, otherwise the built-in boom. */
+function playKill(lvl, name) {
+  const src = ((H.catalog.bw11 || {}).sounds || {})[name];
+  if (!src) return boom(lvl);
+  try { const a = new Audio(src); a.play().catch(() => boom(lvl)); } catch (e) { boom(lvl); }
 }
 function fx(e, g) {
   const st = H.st;
@@ -324,7 +324,10 @@ function fx(e, g) {
     const victim = e.pid === st.you ? 'You' : H.nameOf(e.pid);
     const small = e.by ? `${esc(e.by === st.you ? 'You' : H.nameOf(e.by))} eliminated ${esc(victim)}` : `${esc(victim)} ${e.pid === st.you ? 'are' : 'is'} out`;
     const lvl = Math.max(1, Math.min(5, e.streak || 1));
-    setTimeout(() => { banner(STREAK[lvl], small); playKill(lvl); }, 350);
+    // Knocked out by a called bluff: "Executed". Otherwise the kill streak for this turn.
+    const big = e.bluff ? 'EXECUTED' : STREAK[lvl];
+    const sound = e.bluff ? 'executed' : SOUND[lvl];
+    setTimeout(() => { banner(big, small); playKill(lvl, sound); }, e.bluff ? 1500 : 350);
   } else if (e.type === 'bluff') {
     if (e.caught) banner('BLUFF CAUGHT!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} ${e.stake} more`, true);
     else banner('IT WAS TRUE!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} ${e.stake}`, true);
