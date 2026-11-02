@@ -267,8 +267,8 @@ function overHTML(g, st) {
 }
 
 /* ---------- announcer ---------- */
-const STREAK = ['', 'SINGLE KILL', 'DOUBLE KILL', 'TRIPLE KILL', 'QUADRA KILL', 'GODLIKE'];
-const SOUND = ['', 'single-kill', 'double-kill', 'triple-kill', 'quadra-kill', 'godlike'];
+const STREAK = ['', 'SINGLE KILL', 'DOUBLE KILL', 'TRIPLE KILL', 'QUADRA KILL', 'PENTAKILL', 'GODLIKE'];
+const SOUND = ['', 'single-kill', 'double-kill', 'triple-kill', 'quadra-kill', 'pentakill', 'godlike'];
 function banner(big, small, gold) {
   document.querySelectorAll('.bw-banner').forEach(e => e.remove());
   const b = document.createElement('div');
@@ -323,10 +323,16 @@ function fx(e, g) {
   else if (e.type === 'kill') {
     const victim = e.pid === st.you ? 'You' : H.nameOf(e.pid);
     const small = e.by ? `${esc(e.by === st.you ? 'You' : H.nameOf(e.by))} eliminated ${esc(victim)}` : `${esc(victim)} ${e.pid === st.you ? 'are' : 'is'} out`;
-    const lvl = Math.max(1, Math.min(5, e.streak || 1));
-    // Knocked out by a called bluff: "Executed". Otherwise the kill streak for this turn.
-    const big = e.bluff ? 'EXECUTED' : STREAK[lvl];
-    const sound = e.bluff ? 'executed' : SOUND[lvl];
+    const lvl = Math.max(1, Math.min(6, e.streak || 1));
+    // Which line to announce, most special first: the knock-out that ends the game (Ace),
+    // the first one of the game (First Blood), one caused by a called bluff (Executed),
+    // otherwise the kill streak for this turn.
+    let big = STREAK[lvl], sound = SOUND[lvl];
+    if (e.last) { big = 'ACE'; sound = 'ace'; }
+    else if (e.first) { big = 'FIRST BLOOD'; sound = 'first-blood'; }
+    else if (e.bluff) { big = 'EXECUTED'; sound = 'executed'; }
+    // The player who was knocked out hears "You have been slain" instead.
+    if (e.pid === st.you) sound = 'slain';
     setTimeout(() => { banner(big, small); playKill(lvl, sound); }, e.bluff ? 1500 : 350);
   } else if (e.type === 'bluff') {
     if (e.caught) banner('BLUFF CAUGHT!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} ${e.stake} more`, true);

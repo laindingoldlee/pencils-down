@@ -192,7 +192,8 @@ function flip(g, owner, tile, credit) {
     streak = g.turn.streak[credit] = (g.turn.streak[credit] || 0) + 1;
   }
   log(g, { k: 'kill', pid: owner, by: credit !== owner ? credit : null, streak });
-  g.ctx.fx({ type: 'kill', pid: owner, by: credit !== owner ? credit : null, streak, bluff: !!g.bluffing });
+  g.ctx.fx({ type: 'kill', pid: owner, by: credit !== owner ? credit : null, streak, bluff: !!g.bluffing,
+    first: g.dead.length === 1, last: alive(g).length <= 1 });
 }
 function flipRandom(g, owner, count, credit) {
   const hidden = g.hands[owner].filter(t => !t.up);

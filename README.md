@@ -28,7 +28,7 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 
 ## Kill announcer sounds
 
-Put recordings in `public/games/bw11/sounds/` named `single-kill`, `double-kill`, `triple-kill`, `quadra-kill`, `godlike` (5 or more in one turn) and `executed` (knocked out by a called bluff) (`.mp3`, `.m4a`, `.wav` or `.ogg`). Missing ones just show the words on screen with a short built-in sound.
+Put recordings in `public/games/bw11/sounds/` named `single-kill`, `double-kill`, `triple-kill`, `quadra-kill`, `pentakill` (5 in one turn), `godlike` (6 or more), `executed` (knocked out by a called bluff), `first-blood` (first knock-out of the game), `ace` (the knock-out that leaves one player) and `slain` (heard by the player who was knocked out) (`.mp3`, `.m4a`, `.wav` or `.ogg`). Missing ones just show the words on screen with a short built-in sound.
 
 ## Changing the emotes
 
