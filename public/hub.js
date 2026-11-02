@@ -14,7 +14,8 @@ const GAME_LIST = [
     blurb: 'Five magic items, one card. Grab the right one before anyone else does.' },
   { id: 'carpet', name: 'The Carpet Trap', ready: false, blurb: 'Coming soon.' },
   { id: 'spell', name: 'Spellbound Mayhem', ready: false, blurb: 'Coming soon.' },
-  { id: 'bw11', name: 'Black, White & Eleven', ready: false, blurb: 'Coming soon.' }
+  { id: 'bw11', name: 'Black, White & Eleven', players: '2+ players', ready: true,
+    blurb: 'Guess the hidden numbers in everyone’s tiles. Lie, call bluffs, and feed the Liar’s Pot.' }
 ];
 
 /* ---------- helpers ---------- */

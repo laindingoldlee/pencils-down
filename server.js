@@ -19,12 +19,13 @@ const express = require('express');
 const { Server } = require('socket.io');
 const pencilsDownServer = require('./games/pencils-down');
 const fifth = require('./games/fifth-element');
+const bw11 = require('./games/black-white-eleven');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth };               // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth']; // everything the host can pick
+const GAMES = { fifth, bw11 };                 // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -46,9 +47,22 @@ function loadEmotes() {
   } catch (e) { console.error('Could not read the emote list:', e.message); return []; }
 }
 const EMOTES = loadEmotes();
+/* Recorded announcer sounds for Black, White & Eleven, if any have been added,
+   named single-kill, double-kill, triple-kill, quadra-kill, rampage (.mp3/.m4a/.wav/.ogg). */
+function loadSounds(dir, urlBase) {
+  const out = {};
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/^([a-z0-9-]+)\.(mp3|m4a|wav|ogg|webm)$/i);
+      if (m) out[m[1].toLowerCase()] = urlBase + f;
+    }
+  } catch (e) { /* no sounds yet */ }
+  return out;
+}
 const CATALOG = {
   emotes: EMOTES,
-  fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES }
+  fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
+  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
 };
 
 /* ---------- web server ---------- */
@@ -99,7 +113,7 @@ function makeRoom(code) {
   const room = {
     code, hostPid: null, players: new Map(),
     selected: 'fifth',
-    settings: { fifth: fifth.defaults() },
+    settings: Object.fromEntries(Object.entries(GAMES).map(([id, G]) => [id, G.defaults()])),
     game: null,          // a game being played inside the room
     pencils: false,      // a Pencils Down game was opened from this room
     hostTimer: null, lastActive: Date.now()
@@ -262,8 +276,10 @@ io.on('connection', socket => {
     if (rooms.size >= MAX_ROOMS) return reply({ ok: false, gone: true, error: 'The server is busy. Try again in a few minutes.' });
     const room = makeRoom(code);
     if (p.selected && ALL_GAMES.includes(p.selected)) room.selected = p.selected;
-    if (p.settings && typeof p.settings === 'object' && p.settings.fifth && typeof p.settings.fifth === 'object') {
-      room.settings.fifth = fifth.cleanSettings(p.settings.fifth, room.settings.fifth);
+    if (p.settings && typeof p.settings === 'object') {
+      for (const [id, G] of Object.entries(GAMES)) {
+        if (p.settings[id] && typeof p.settings[id] === 'object') room.settings[id] = G.cleanSettings(p.settings[id], room.settings[id]);
+      }
     }
     if (isId(p.hostPid) && p.hostPid !== p.pid) {
       // Hold the host's place for a moment so they get it back when their page reconnects.
@@ -311,6 +327,7 @@ io.on('connection', socket => {
     if (room.pencils) { pd.returnToParty(room.code); room.pencils = false; }
     room.game = G.start(gameCtx(room), room.settings[room.selected]);
     reply({ ok: true });
+    broadcast(room);
   });
 
   // A move in the game being played.
@@ -328,6 +345,7 @@ io.on('connection', socket => {
     endGame(c.room);
     c.room.game = GAMES[id].start(gameCtx(c.room), c.room.settings[id]);
     reply({ ok: true });
+    broadcast(c.room);
   });
 
   on('toRoom', (p, reply) => {

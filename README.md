@@ -8,7 +8,8 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 
 - **Pencils Down**: a letter-and-categories word game. Starting it takes everyone from the room to the Pencils Down page; "Back to the party room" brings them back.
 - **The Fifth Element**: five items, each with its own color. Each card shows two items. If one is in its own color, click it. If both are in the wrong color, cross out the items and colors on the card and click the one item left. Fastest correct click wins the card; a wrong click burns one of your cards. Between cards a ring fills up to show when the next one lands. Cards nobody wins carry over. Most cards wins, and a tie goes to sudden death. The host picks the deck size (30, 60, 90 or 120 cards) and the item set.
-- The Carpet Trap, Spellbound Mayhem, and Black, White & Eleven are coming soon.
+- **Black, White & Eleven**: tiles numbered 0 to 11 in black and white (plus blue, red, green and yellow for bigger groups). Everyone sees the color of every tile but only the numbers of their own. Draw a tile, point at someone's hidden tile and name it. They answer Yes or No, and a No can be a lie. Accept it and a chip goes into the Liar's Pot, or call the bluff and whoever was wrong flips as many tiles as there are chips. Right guesses let you keep going; wrong ones flip the tile you drew. Lose all your hidden tiles and you're out, with a kill-streak announcer. The host picks the number of colors (recommended: one per two players, at least two) and turns wildcards on or off.
+- The Carpet Trap and Spellbound Mayhem are coming soon.
 
 ## What's in here
 
@@ -24,6 +25,10 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 2. Put five item pictures in it. SVG works best: draw each item in **black on a transparent background**. The game paints them in the right color. Gray shading shows as a lighter version of the color.
 3. Copy `theme.json` from the `magic` folder into it and change the name, the five items, their files and their colors (like `#E8402F`). The five colors must all be different.
 4. Upload the folder. After Render redeploys, the host can pick the new set in the room. `magic` stays the default.
+
+## Kill announcer sounds
+
+Put recordings in `public/games/bw11/sounds/` named `single-kill`, `double-kill`, `triple-kill`, `quadra-kill` and `rampage` (`.mp3`, `.m4a`, `.wav` or `.ogg`). Missing ones just show the words on screen with a short built-in sound.
 
 ## Changing the emotes
 
