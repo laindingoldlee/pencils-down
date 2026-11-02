@@ -7,7 +7,7 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 ## Games
 
 - **Pencils Down**: a letter-and-categories word game. Starting it takes everyone from the room to the Pencils Down page; "Back to the party room" brings them back.
-- **The Fifth Element**: five items, each with its own color. Each card shows two items. If one is in its own color, click it. If both are in the wrong color, cross out the items and colors on the card and click the one item left. Fastest correct click wins the card; a wrong click burns two of your cards. Cards nobody wins carry over. Most cards wins, and a tie goes to sudden death. The host picks the deck size (30, 60, 90 or 120 cards) and the item set.
+- **The Fifth Element**: five items, each with its own color. Each card shows two items. If one is in its own color, click it. If both are in the wrong color, cross out the items and colors on the card and click the one item left. Fastest correct click wins the card; a wrong click burns one of your cards. Between cards a ring fills up to show when the next one lands. Cards nobody wins carry over. Most cards wins, and a tie goes to sudden death. The host picks the deck size (30, 60, 90 or 120 cards) and the item set.
 - The Carpet Trap, Spellbound Mayhem, and Black, White & Eleven are coming soon.
 
 ## What's in here

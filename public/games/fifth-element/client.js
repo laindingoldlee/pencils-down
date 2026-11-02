@@ -44,7 +44,7 @@ function settings(st) {
       <li>Each card shows two items. Be the first to click the right one of the five items below the card.</li>
       ${ex ? `<li>If an item on the card is in its own color, click that item. ${esc(it[0].colorName || '')} ${esc(it[0].name)} + ${esc(it[3].colorName || '')} ${esc(it[1].name)} → <b>${esc(it[0].name)}</b>.</li>
       <li>If both items are in the wrong color, cross out the two items and the two colors on the card. Click the one item that’s left. ${esc(it[3].colorName || '')} ${esc(it[0].name)} + ${esc(it[4].colorName || '')} ${esc(it[1].name)} → <b>${esc(it[2].name)}</b>.</li>` : ''}
-      <li>The fastest correct click wins the card. A wrong click burns two of your cards and locks you out until the next card.</li>
+      <li>The fastest correct click wins the card. A wrong click burns one of your cards and locks you out until the next card.</li>
       <li>If nobody gets it, the card carries over and the next winner takes both.</li>
       <li>Piles show how many cards you have, but nobody sees the numbers until the end. Most cards wins; a tie goes to sudden death.</li>
     </ul></div>`;
@@ -115,7 +115,7 @@ function render(main, st) {
         <ul>
           <li>An item on the card in its <b>own color</b>? Click that item.</li>
           <li>Both items in the <b>wrong color</b>? Cross out the two items and the two colors on the card. Click the item that’s left.</li>
-          <li>A wrong click burns two of your cards and locks you out until the next card. On a computer, keys 1–5 work too.</li>
+          <li>A wrong click burns one of your cards and locks you out until the next card. On a computer, keys 1–5 work too.</li>
         </ul>
       </details>
     </section>`;
@@ -182,10 +182,20 @@ function updateCard(st, g, t) {
   if (g.card) {
     wrap.innerHTML = `<div class="fe-card face${g.phase === 'result' ? ' done' : ''}" id="feCard">${g.card.shows.map(s =>
       `<span class="slot">${ico(t.items[s.item], t.items[s.color].color, `transform:rotate(${Number(s.rot) || 0}deg) scale(${(Number(s.size) || 100) / 100})`)}</span>`).join('')}</div>`;
+  } else if (g.phase === 'ready' && g.seq > 0) {
+    // Between cards: a ring fills up, so everyone can see exactly when the next card lands.
+    wrap.innerHTML = `<div class="fe-card back" id="feCard"><svg class="fe-ring" viewBox="0 0 100 100" aria-hidden="true">
+      <circle class="bg" cx="50" cy="50" r="${RING_R}"/><circle class="fg" id="feRing" cx="50" cy="50" r="${RING_R}"/></svg><span class="sigil small">✦</span></div>`;
+    const ring = document.getElementById('feRing');
+    const total = Math.max(1, g.revealAt - g.readyAt);
+    const left = Math.max(0, Math.min(total, g.revealAt - H.now()));
+    ring.style.strokeDasharray = RING_C;
+    ring.animate([{ strokeDashoffset: RING_C * left / total }, { strokeDashoffset: 0 }], { duration: left, easing: 'linear', fill: 'forwards' });
   } else {
     wrap.innerHTML = `<div class="fe-card back wait" id="feCard"><span class="sigil" id="feSigil">✦</span></div>`;
   }
 }
+const RING_R = 34, RING_C = 2 * Math.PI * RING_R;
 
 function canPick(st, g) {
   return g.phase === 'card' && !g.locked.includes(st.you) && !(g.sudden && !g.sudden.includes(st.you)) && L.pickedSeq !== g.seq && !L.pending;

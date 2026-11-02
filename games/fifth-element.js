@@ -7,7 +7,7 @@
  *  - If both are shown in the wrong color, the answer is the one item that is
  *    neither on the card nor in a color on the card.
  * The first correct click wins the card, plus any cards carried over from earlier
- * cards nobody won. A wrong click burns two cards from the player's pile and locks
+ * cards nobody won. A wrong click burns one card from the player's pile and locks
  * them out of that card. Most cards at the end wins; a tie goes to sudden death.
  *
  * Item sets ("themes") live in public/games/fifth-element/themes/<id>/theme.json,
@@ -26,7 +26,7 @@ const NEXT_MAX_MS = 2200;
 const RESULT_MS = 2400;          // how long the answer stays up after each card
 const CARD_MS = 20000;           // a card nobody wins in this time carries over
 const SUDDEN_INTRO_MS = 3500;
-const BURN = 2;
+const BURN = 1;
 
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Fifth Element error:', e); } };
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -140,7 +140,8 @@ function queueNext(g, delay) {
   }
   g.phase = g.sudden && g.phase === 'sudden' ? 'sudden' : 'ready';
   g.card = null; g.locked = new Set(); g.result = null;
-  g.revealAt = Date.now() + delay;
+  g.readyAt = Date.now();
+  g.revealAt = g.readyAt + delay;
   g.timer = setTimeout(safe(() => reveal(g)), delay);
   g.ctx.broadcast();
 }
@@ -259,6 +260,7 @@ function view(g) {
     deckSize: g.deckSize,
     left: g.deck.length - g.dealt,
     phase: g.phase,
+    readyAt: g.readyAt,
     revealAt: g.revealAt,
     shownAt: g.shownAt,
     seq: g.seq,
