@@ -1,0 +1,13 @@
+{
+  "_help": "Each emote needs an id. Until it has a picture it shows the emoji. To use your own picture, put it in this folder and add \"file\": \"laugh.png\" to that emote.",
+  "emotes": [
+    { "id": "laugh",  "label": "Laugh",       "emoji": "😂" },
+    { "id": "wow",    "label": "Wow",         "emoji": "😮" },
+    { "id": "love",   "label": "Love",        "emoji": "😍" },
+    { "id": "clap",   "label": "Applause",    "emoji": "👏" },
+    { "id": "fire",   "label": "On fire",     "emoji": "🔥" },
+    { "id": "cry",    "label": "Crying",      "emoji": "😭" },
+    { "id": "angry",  "label": "Angry",       "emoji": "😡" },
+    { "id": "think",  "label": "Hmm",         "emoji": "🤔" }
+  ]
+}

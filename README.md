@@ -1,31 +1,52 @@
-# Pencils Down
+# Game Night
 
-A live letter-and-categories word game for friends. One person starts a game and shares the link. Everyone else opens it, types a name, and plays. No accounts needed.
+Party games to play live with friends in the browser. One person starts a room and shares the link. Everyone else opens it, types a name, and they're in. No accounts needed.
+
+In the room, everyone can tap emotes that float up above their avatar. The host picks a game and starts it for everyone.
+
+## Games
+
+- **Pencils Down**: a letter-and-categories word game. Starting it takes everyone from the room to the Pencils Down page; "Back to the party room" brings them back.
+- **The Fifth Element**: five items, each with its own color. Each card shows two items. If one is in its own color, click it. If both are in the wrong color, cross out the items and colors on the card and click the one item left. Fastest correct click wins the card; a wrong click burns two of your cards. Cards nobody wins carry over. Most cards wins, and a tie goes to sudden death. The host picks the deck size (30, 60, 90 or 120 cards) and the item set.
+- The Carpet Trap, Spellbound Mayhem, and Black, White & Eleven are coming soon.
 
 ## What's in here
 
-- `server.js` is the game server. It keeps each game in memory, runs the timer, collects answers and votes, and adds up the scores.
-- `public/index.html` is the page everyone plays on.
+- `server.js` runs the website and the party rooms (players, host, emotes, starting games).
+- `games/pencils-down.js` is the Pencils Down game server. `public/pencils-down/index.html` is its page.
+- `games/fifth-element.js` is The Fifth Element game server (cards, scoring, sudden death). `public/games/fifth-element/` has its page code, styles and item sets.
+- `public/index.html` and `public/hub.js` are the party room page.
 - `package.json` lists the two libraries the server uses (Express and Socket.IO).
+
+## Adding a new item set to The Fifth Element
+
+1. Make a new folder in `public/games/fifth-element/themes/`, named with lowercase letters, numbers and dashes, for example `ocean`.
+2. Put five item pictures in it. SVG works best: draw each item in **black on a transparent background**. The game paints them in the right color. Gray shading shows as a lighter version of the color.
+3. Copy `theme.json` from the `magic` folder into it and change the name, the five items, their files and their colors (like `#E8402F`). The five colors must all be different.
+4. Upload the folder. After Render redeploys, the host can pick the new set in the room. `magic` stays the default.
+
+## Changing the emotes
+
+The emote list is `public/art/emotes/emotes.json`. Each emote shows its emoji until it has a picture. To use your own picture, put it in `public/art/emotes/` (PNG, GIF, SVG or WebP, square, transparent background, about 256×256) and add `"file": "laugh.png"` to that emote.
 
 ## Putting it online for free (Render)
 
 You need a free GitHub account and a free Render account. It takes about 15 minutes the first time.
 
-1. **Put the files on GitHub.** Sign in at github.com and create a new repository called `pencils-down`. On the empty repository page, click **uploading an existing file**. Drag in everything from this folder: `server.js`, `package.json`, `package-lock.json`, `README.md`, and the `public` folder. Click **Commit changes**.
+1. **Put the files on GitHub.** Sign in at github.com and create a new repository called `pencils-down`. On the empty repository page, click **uploading an existing file**. Drag in everything from this folder: `server.js`, `package.json`, `package-lock.json`, `README.md`, and the `public` and `games` folders. Click **Commit changes**.
 2. **Create the web service on Render.** Sign up at render.com (signing up with GitHub is easiest). Click **New**, then **Web Service**, and pick your `pencils-down` repository.
 3. **Fill in the settings:**
    - Language: **Node**
    - Build command: `npm install`
    - Start command: `npm start`
    - Instance type: **Free**
-4. Click **Deploy**. After a few minutes Render shows your address, something like `https://pencils-down-ab12.onrender.com`. Open it, start a game and send the link to your friends.
+4. Click **Deploy**. After a few minutes Render shows your address, something like `https://pencils-down-ab12.onrender.com`. Open it, start a room and send the link to your friends.
 
 ## Good to know
 
 - The free server goes to sleep after 15 minutes with nobody playing. The first person to open the link after that waits about a minute while it wakes up. Open it a minute before game night.
-- Games live only in the server's memory. If Render restarts the server, any game in progress ends and everyone starts a new one.
-- Up to 12 players per game.
+- Rooms live only in the server's memory. If Render restarts the server, each page reconnects and the room comes back with the same code. A Pencils Down game carries on where it was; a Fifth Element game in progress ends and everyone is back in the room.
+- Up to 20 people per room, and 12 per Pencils Down game.
 - To change something later, upload the edited file to the same GitHub repository and Render redeploys on its own.
 
 ## Running it on your own computer
