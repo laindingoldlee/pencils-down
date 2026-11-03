@@ -20,12 +20,13 @@ const { Server } = require('socket.io');
 const pencilsDownServer = require('./games/pencils-down');
 const fifth = require('./games/fifth-element');
 const bw11 = require('./games/black-white-eleven');
+const spell = require('./games/spellbound');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11 };                 // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11']; // everything the host can pick
+const GAMES = { fifth, bw11, spell };                   // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -324,6 +325,8 @@ io.on('connection', socket => {
     if (!G) return reply({ ok: false });
     const online = [...room.players.values()].filter(isOn).length;
     if (online < G.minPlayers) return reply({ ok: false, error: `${G.name} needs at least ${G.minPlayers} players.` });
+    const why = G.canStart && G.canStart(room.settings[room.selected], online);
+    if (why) return reply({ ok: false, error: why });
     if (room.pencils) { pd.returnToParty(room.code); room.pencils = false; }
     room.game = G.start(gameCtx(room), room.settings[room.selected]);
     reply({ ok: true });

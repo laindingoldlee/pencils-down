@@ -13,7 +13,8 @@ const GAME_LIST = [
   { id: 'fifth', name: 'The Fifth Element', players: '2+ players', ready: true,
     blurb: 'Five magic items, one card. Grab the right one before anyone else does.' },
   { id: 'carpet', name: 'The Carpet Trap', ready: false, blurb: 'Coming soon.' },
-  { id: 'spell', name: 'Spellbound Mayhem', ready: false, blurb: 'Coming soon.' },
+  { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
+    blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
   { id: 'bw11', name: 'Black, White & Eleven', players: '2+ players', ready: true,
     blurb: 'Guess the hidden numbers in everyone’s tiles. Lie, call bluffs, and feed the Liar’s Pot.' }
 ];
