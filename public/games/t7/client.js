@@ -14,7 +14,7 @@ const POWER = {
   A: { lbl: 'Add a card', long: 'Add a card: the top card of the pile goes face down onto any player’s row.' },
   2: { lbl: 'Spy row', long: 'Spy row: secretly look at another player’s whole row.' },
   3: { lbl: 'Full sight', long: 'Full sight: look at all of your own cards.' },
-  6: { lbl: 'Echo', long: 'Echo: repeat the last power that was played.' },
+  6: { lbl: 'Echo', long: 'Echo: repeat the last power that was played, except Remove (7).' },
   7: { lbl: '= 0 · Remove', long: 'Remove: remove one of your own cards (at least one has to stay). Its power happens too.' },
   8: { lbl: 'Skip', long: 'Skip: the next player loses their turn.' },
   9: { lbl: 'Go again', long: 'Go again: take another turn.' },
@@ -70,8 +70,11 @@ function settings(st) {
   <div class="setting"><span class="label">Calling “last round”<br><small class="muted" style="font-weight:400">Otherwise the round ends when the pile runs out</small></span>
     <div class="t7set">${seg('t7-call', 0, !s.allowCall, 'Off')}${seg('t7-call', 1, s.allowCall, 'On')}</div></div>
   ${s.allowCall ? `<div class="setting"><span class="label">Penalty if the caller isn’t lowest</span>${step('penalty', s.penalty, 0, 30)}</div>` : ''}
-  <div class="setting stack"><span class="label">Card powers <small class="muted" style="font-weight:400">tap to turn one off</small></span>
-    <div class="t7set">${ORDER.map(r => seg('t7-power', r, s.powers[r] !== false, `${rankName(r)} · ${esc(POWER[r].lbl)}`)).join('')}</div></div>
+  <div class="setting"><span class="label">Remember cards you’ve looked at<br><small class="muted" style="font-weight:400">On: they stay shown, faded, even after they move. Off: they flip back after 5 seconds, so you have to remember.</small></span>
+    <div class="t7set">${seg('t7-remember', 0, !s.remember, 'Off')}${seg('t7-remember', 1, s.remember, 'On')}</div></div>
+  <div class="setting stack"><span class="label">Card powers <small class="muted" style="font-weight:400">tap a card to turn its power on or off. A card with its power off is just its number.</small></span>
+    <div class="t7set">${ORDER.map(r => seg('t7-power', r, s.powers[r] !== false, `${rankName(r)} · ${esc(POWER[r].lbl)}`)).join('')}
+      ${host ? `<button type="button" data-act="t7-powers-all" data-k="1">All on</button><button type="button" data-act="t7-powers-all" data-k="0">All off</button>` : ''}</div></div>
   <div class="setting stack"><span class="label">How to play</span>${rulesList(s)}</div>`;
 }
 function rulesList(s) {
@@ -80,6 +83,7 @@ function rulesList(s) {
     <li>On your turn, draw a card. Play it, or put it in place of one of your cards and play that one instead.</li>
     <li>A played card’s power always happens. Locked cards can’t be looked at, moved or replaced, except by a Joker.</li>
     <li>Lowest total wins: <b>7 = 0</b>, A = 1, J/Q/K/Joker = 10, the rest count their number. Three 7s is a perfect 0.</li>
+    <li>${s.remember ? 'Cards you’ve looked at stay shown to you, faded, even after they move.' : 'A card you look at is shown for 5 seconds, then flips back. Remember it!'}</li>
     <li>The round ends when the pile runs out${s.allowCall ? `, or one lap after someone calls “last round” instead of drawing. If the caller isn’t the lowest, they get +${s.penalty}` : ''}.</li>
   </ul>`;
 }
@@ -90,6 +94,8 @@ function setT7(patch) {
 }
 H.on('t7-decks', (b, k) => setT7({ decks: Number(k) }));
 H.on('t7-call', (b, k) => setT7({ allowCall: k === '1' }));
+H.on('t7-remember', (b, k) => setT7({ remember: k === '1' }));
+H.on('t7-powers-all', (b, k) => setT7({ powers: Object.fromEntries(ORDER.map(r => [r, k === '1'])) }));
 H.on('t7-power', (b, k) => { const p = Object.assign({}, H.st.settings.t7.powers); p[k] = !(p[k] !== false); setT7({ powers: p }); });
 H.on('t7-set', (b, k) => {
   const [key, d] = k.split('|');
@@ -109,7 +115,16 @@ H.on('t7-call-now', b => {
   b.disabled = true; move({ a: 'call' });
 });
 H.on('t7-play', b => { b.disabled = true; move({ a: 'play' }); });
-H.on('t7-card', (b, k) => {
+/* Card taps act on pointerdown, so a tap still counts if the screen redraws mid-tap
+   (which happens a lot when many players are moving at once). */
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest && e.target.closest('.t7 .pc[data-act="t7-card"]');
+  if (!b || e.button > 0) return;
+  L.downAt = Date.now();
+  tapCard(b.dataset.k);
+});
+H.on('t7-card', (b, k) => { if (Date.now() - (L.downAt || 0) > 700) tapCard(k); });
+function tapCard(k) {
   const g = H.st.game, me = H.st.you, id = Number(k);
   if (g.phase === 'peek') return move({ a: 'peek', id });
   const t = g.turn;
@@ -121,7 +136,7 @@ H.on('t7-card', (b, k) => {
     if (L.sel.length === n) { const ids = L.sel.slice(); L.sel = []; move({ a: 'power', ids }); }
     else H.render();
   }
-});
+}
 H.on('t7-player', (b, k) => {
   const t = H.st.game.turn;
   if (!t || !t.power || !t.power.opts || !t.power.opts.players) return;
@@ -130,6 +145,8 @@ H.on('t7-player', (b, k) => {
   if (L.sel.length === n) { const pids = L.sel.slice(); L.sel = []; move({ a: 'power', pids }); }
   else H.render();
 });
+let resizeT = null;
+window.addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(() => { if (H.st && H.st.game && H.st.game.id === 't7') H.render(); }, 150); });
 document.addEventListener('keydown', e => {
   if ((e.key === 'Enter' || e.key === ' ') && e.target.matches && e.target.matches('.pc[data-act]')) { e.preventDefault(); e.target.click(); }
 });
@@ -155,39 +172,78 @@ function render(main, st) {
     if (t.power.opts.players) pickPlayers = t.power.opts.players;
   }
   const reveal = g.phase === 'roundEnd' || g.phase === 'over';
+  // Without "remember cards", a card you looked at flips back once its time is up.
+  L.nextExpire = 0;
+  const shown = c => {
+    if (!c.until) return c;
+    if (H.now() >= c.until) return Object.assign({}, c, { face: null, priv: false });
+    if (!L.nextExpire || c.until < L.nextExpire) L.nextExpire = c.until;
+    return c;
+  };
   const seat = pid => {
     const row = g.rows[pid] || [];
     const isMe = pid === me;
-    const cards = row.map(c => cardHTML(c.face, {
+    const cards = row.map(shown).map(c => cardHTML(c.face, {
       locked: c.locked, up: c.up && !reveal, priv: c.priv, flash: flashing.includes(c.id),
       pick: pickCards.includes(c.id), sel: L.sel.includes(c.id),
       act: pickCards.includes(c.id) ? 't7-card' : '', k: c.id
     })).join('');
-    const score = reveal && g.summary ? ` · ${g.summary.scores[pid]} pts` : '';
-    const status = t && t.pid === pid ? (t.step === 'power' && t.power ? `using ${rankName(t.power.r)}…` : 'their turn') : (g.phase === 'peek' ? (g.peeked.includes(pid) ? 'ready' : 'peeking…') : '');
+    const score = reveal && g.summary ? `${g.summary.scores[pid]} pts` : '';
+    const status = t && t.pid === pid ? (isMe ? 'your turn' : (t.step === 'power' && t.power ? `using ${rankName(t.power.r)}…` : 'their turn')) : (g.phase === 'peek' ? (g.peeked.includes(pid) ? 'ready' : 'peeking…') : '');
+    const sub = [status, score, g.settings.rounds > 1 ? `${g.totals[pid]} total` : ''].filter(Boolean).join(' · ');
     return `<div class="t7seat${t && t.pid === pid ? ' turn' : ''}${isMe ? ' me' : ''}">
-      <div class="t7head">${H.avatar(pid, 38)}<span class="nm">${esc(isMe ? 'You' : H.nameOf(pid))}<small>${esc(isMe && t && t.pid === me ? 'your turn' : status)}${score}</small></span>${g.settings.rounds > 1 ? `<span class="tot">${g.totals[pid]} total</span>` : ''}</div>
+      <div class="t7head">${H.avatar(pid, isMe ? 34 : 28)}<span class="nm">${esc(isMe ? 'You' : H.nameOf(pid))}<small>${esc(sub)}</small></span></div>
       <div class="t7row">${cards}</div></div>`;
   };
   const top = g.discard[g.discard.length - 1];
-  const others = g.order.filter(p => p !== me);
-  H.keepFocus(main, () => {
-    main.innerHTML = `<section class="t7" aria-label="The Triple Seven">
+  // Seats go round the table, you at the bottom, the others clockwise in turn order.
+  const around = playing ? [me, ...g.order.slice(g.order.indexOf(me) + 1), ...g.order.slice(0, g.order.indexOf(me))] : g.order;
+  const n = around.length;
+  const size = n <= 4 ? 'few' : n <= 6 ? 'some' : 'many';
+  // On a phone, the others sit in two columns down the sides of the table
+  // (still clockwise: up the left, then down the right), and the pile moves above the table.
+  const narrow = window.innerWidth < 620;
+  const cols = narrow && n >= 3;
+  const leftN = Math.ceil((n - 1) / 2), rightN = n - 1 - leftN;
+  const spotAt = i => {
+    if (!cols) {
+      const a = Math.PI / 2 + (i * 2 * Math.PI) / n;
+      return [50 + (narrow ? 30 : 41) * Math.cos(a), 50 + (narrow ? 41 : 40) * Math.sin(a)];
+    }
+    if (i === 0) return [50, 90];
+    const rows = Math.max(leftN, rightN);
+    const yOf = j => (rows === 1 ? 40 : 70 - (j * 58) / (rows - 1));
+    if (i <= leftN) return [26, yOf(i - 1)];
+    return [74, yOf(rows - 1 - (i - 1 - leftN))];
+  };
+  const seats = around.map((pid, i) => {
+    const [x, y] = spotAt(i);
+    return `<div class="t7spot${pid === me ? ' mine' : ''}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${seat(pid)}</div>`;
+  }).join('');
+  const center = `<div class="t7-center${cols ? ' out' : ''}">
+          <div class="t7-pilebox"><span class="pilestack">${g.pileLeft ? cardHTML(null) : ''}</span><span class="pilecount"><b>${g.pileLeft}</b><small>left in<br>the pile</small></span></div>
+          <div class="t7-pilebox">${top ? cardHTML(top) : '<span class="muted" style="font-size:.85rem">Nothing<br>played yet</span>'}<span class="pilecount"><small>Last<br>played</small></span></div>
+          ${g.called && g.phase === 'play' ? `<div class="called">📣 ${esc(nm(g.called, st))} called last round!</div>` : ''}
+        </div>`;
+  const html = `<section class="t7" aria-label="The Triple Seven">
       <div class="t7-top"><div class="t7-title">The Triple Seven<small>${g.settings.rounds > 1 ? `Round ${g.round} of ${g.settings.rounds}` : ''}</small></div>
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
-      <div class="t7-table">
-        <div class="t7-pilebox"><span class="pilestack">${g.pileLeft ? cardHTML(null) : ''}</span><span class="pilecount"><b>${g.pileLeft}</b><small>card${g.pileLeft === 1 ? '' : 's'} left in the pile</small></span></div>
-        <div class="t7-pilebox">${top ? cardHTML(top) : '<span class="muted">Nothing played yet</span>'}<span class="pilecount"><small>Last played</small></span></div>
+      ${cols ? center : ''}
+      <div class="t7-round ${size}${cols ? ' cols' : ''}">
+        <div class="t7-felt" aria-hidden="true"></div>
+        ${cols ? '' : center}
+        ${seats}
       </div>
-      ${g.called && g.phase === 'play' ? `<div class="called">📣 ${esc(nm(g.called, st))} called last round! Everyone else gets one more turn.</div>` : ''}
+      ${playing ? '' : '<p class="muted" style="margin:0">You joined after this game started, so you’re watching this one.</p>'}
       ${actHTML(g, st, pickPlayers)}
-      <div class="t7-seats">${others.map(seat).join('')}</div>
-      ${playing ? `<div class="t7-seats">${seat(me)}</div>` : '<p class="muted" style="margin:0">You joined after this game started, so you’re watching this one.</p>'}
       <details class="t7-log"${L.logOpen ? ' open' : ''}><summary>What happened</summary><ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol></details>
       <details class="t7-rules"><summary>How to play</summary>${rulesList(g.settings)}
         <ul>${ORDER.filter(r => g.settings.powers[r] !== false).map(r => `<li><b>${rankName(r)}</b>: ${esc(POWER[r].long)}</li>`).join('')}</ul></details>
     </section>`;
-  });
+  // Only touch the page when something on it actually changed.
+  if (html === L.lastHTML && main.querySelector('.t7')) return;
+  L.lastHTML = html;
+  H.keepFocus(main, () => { main.innerHTML = html; });
   const lg = main.querySelector('.t7-log');
   if (lg) lg.addEventListener('toggle', () => { L.logOpen = lg.open; });
 }
@@ -328,6 +384,8 @@ Hub.registerGame('t7', {
     if (!g) return;
     if (g.phase === 'peek') H.setText('t7Left', '(' + Math.max(0, Math.ceil((g.peekEnds - H.now()) / 1000)) + 's)');
     if (g.phase === 'roundEnd') H.setText('t7Next', String(Math.max(0, Math.ceil((g.nextRoundAt - H.now()) / 1000))));
+    // flip back cards you looked at, when "remember cards" is off
+    if (L.nextExpire && H.now() >= L.nextExpire) { L.nextExpire = 0; H.render(); }
     // take the highlight off recently changed cards
     if (L.flashAt && Date.now() - L.flashAt > 1300) { L.flashAt = 0; document.querySelectorAll('.t7 .pc.flash').forEach(el => el.classList.remove('flash')); }
   }

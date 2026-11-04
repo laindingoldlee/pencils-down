@@ -1,5 +1,5 @@
 /* The Triple Seven: a casino-green table with cream playing cards. */
-.t7{--felt:#0F4A2E;--felt-2:#17643F;--ink:#F1FFF6;--soft:#B6D9C3;--gold:#F2CB57;--red:#D8343A;--bad:#FF8A80;--good:#8EF0B8;
+.t7{--felt:#2A1B12;--felt-2:#3D2819;--ink:#F1FFF6;--soft:#B6D9C3;--gold:#F2CB57;--red:#D8343A;--bad:#FF8A80;--good:#8EF0B8;
   background:radial-gradient(120% 90% at 50% 0%,var(--felt-2),var(--felt) 70%);color:var(--ink);border-radius:18px;box-shadow:var(--shadow);
   padding:14px 16px 18px;display:flex;flex-direction:column;gap:14px;margin-bottom:16px}
 .t7 *{min-width:0}
@@ -22,7 +22,7 @@
 .called{background:rgba(216,52,58,.25);border:1.5px solid var(--red);border-radius:12px;padding:8px 12px;font-weight:700;text-align:center}
 
 /* cards */
-.pc{--w:58px;width:var(--w);height:calc(var(--w)*1.42);border-radius:calc(var(--w)*.12);background:#FFFDF6;color:#1E1E24;position:relative;flex:none;
+.pc{--w:var(--cw,58px);width:var(--w);height:calc(var(--w)*1.42);border-radius:calc(var(--w)*.12);background:#FFFDF6;color:#1E1E24;position:relative;flex:none;
   box-shadow:0 2px 0 rgba(0,0,0,.25),0 5px 10px rgba(0,0,0,.3);display:grid;grid-template-rows:auto 1fr auto;padding:4px 5px;border:0;text-align:center;font-family:Georgia,"Times New Roman",serif}
 .pc.red{color:var(--red)}
 .pc .corner{font-weight:700;font-size:calc(var(--w)*.22);line-height:1;text-align:left;white-space:nowrap}
@@ -35,7 +35,10 @@
 .pc.joker .mid{font-size:calc(var(--w)*.5)}
 .pc.back{background:repeating-linear-gradient(45deg,#A3242B 0 5px,#8C1D24 5px 10px);border:3px solid #FFFDF6;display:grid;place-items:center;color:rgba(255,255,255,.85);font-family:var(--font-display)}
 .pc.back .seven7{font-size:calc(var(--w)*.26);letter-spacing:-1px}
+/* a card you've looked at: shown faded, so it reads as your memory rather than a face-up card */
 .pc.priv{outline:2px dashed var(--gold);outline-offset:2px}
+.pc.priv > *{opacity:.5}
+.pc.priv{background:rgba(255,253,246,.62)}
 .pc.priv::before{content:"👁 you";position:absolute;top:-10px;left:50%;transform:translateX(-50%);font:700 .62rem var(--font-body);background:var(--gold);color:#1D2A1F;border-radius:999px;padding:1px 5px;white-space:nowrap;z-index:1}
 .pc.up{box-shadow:0 0 0 3px #fff,0 0 16px 4px rgba(255,255,220,.8)}
 .pc.up::before{content:"💡 all";position:absolute;top:-10px;left:50%;transform:translateX(-50%);font:700 .62rem var(--font-body);background:#fff;color:#1D2A1F;border-radius:999px;padding:1px 5px;white-space:nowrap;z-index:1}
@@ -102,10 +105,46 @@
 .t7step button:disabled{opacity:.3;cursor:default}
 .t7step output{min-width:44px;text-align:center;font-family:var(--font-display);border-inline:1.5px solid var(--ink);padding:6px 4px}
 
+/* the round table */
+.t7-round{position:relative;width:100%;aspect-ratio:16/10;min-height:540px;--cw:46px}
+.t7-round.some{--cw:40px}
+.t7-round.many{--cw:34px}
+.t7-felt{position:absolute;inset:13% 10%;border-radius:50%;
+  background:radial-gradient(ellipse at 50% 38%,#24935A,#14653C 55%,#0C4127 100%);
+  box-shadow:0 0 0 12px #7A4A26,0 0 0 15px #4A2A14,0 0 0 17px #9B6A3E,inset 0 0 50px rgba(0,0,0,.45),0 24px 44px rgba(0,0,0,.6)}
+.t7-felt::after{content:"777";position:absolute;inset:0;display:grid;place-items:center;font-family:var(--font-display);font-size:clamp(3rem,12vw,7rem);color:rgba(255,255,255,.05);letter-spacing:.1em;pointer-events:none}
+.t7-center{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:10px 16px;align-items:center;justify-content:center;flex-wrap:wrap;max-width:50%;z-index:1;--cw:48px}
+.t7-center .called{flex-basis:100%;font-size:.9rem;padding:5px 10px}
+.t7spot{position:absolute;transform:translate(-50%,-50%);z-index:1}
+.t7spot.mine{z-index:2;--cw:52px}
+.t7spot .t7seat{background:rgba(12,18,14,.78);backdrop-filter:blur(2px);padding:6px 9px 8px;gap:4px;width:max-content;max-width:min(300px,46vw);border-radius:14px}
+.t7spot .t7seat.turn{background:rgba(60,48,12,.85)}
+.t7spot .t7head{gap:7px}
+.t7spot .t7head .nm{font-size:.9rem;max-width:150px}
+.t7spot .t7head .nm small{font-size:.72rem}
+.t7spot .t7row{gap:6px;padding-top:9px;padding-bottom:4px;max-width:calc(var(--cw) * 4 + 24px);justify-content:center}
+.t7-round.many .t7spot:not(.mine) .pc .lbl{display:none}
+.t7-round.many .t7spot:not(.mine) .pc{grid-template-rows:auto 1fr}
+
+@media (max-width:620px){
+  .t7-round{aspect-ratio:3/4.3;min-height:0;--cw:36px}
+  .t7-round.some{--cw:31px}
+  .t7-round.many{--cw:27px}
+  .t7spot.mine{--cw:44px}
+  .t7-felt{inset:9% 5%;box-shadow:0 0 0 8px #7A4A26,0 0 0 10px #4A2A14,0 0 0 12px #9B6A3E,inset 0 0 40px rgba(0,0,0,.45),0 16px 30px rgba(0,0,0,.6)}
+  .t7-center{--cw:38px;gap:8px;max-width:60%}
+  .t7-center .pilecount b{font-size:1.3rem}
+  .t7spot .t7head .nm{max-width:90px}
+  .t7spot:not(.mine) .pc .lbl{display:none}
+  .t7spot:not(.mine) .pc{grid-template-rows:auto 1fr}
+  .t7-round.cols{aspect-ratio:3/4.4}
+  .t7-round.cols .t7-felt{inset:4% 8% 10%}
+  .t7-round.cols .t7spot:not(.mine) .t7seat{max-width:44vw}
+  .t7-center.out{position:static;transform:none;max-width:none;margin:0 auto;--cw:38px}
+}
 @media (max-width:520px){
   .t7{padding-inline:10px;border-radius:14px}
   .t7-seats{grid-template-columns:minmax(0,1fr)}
-  .pc{--w:50px}
   .pc.big{--w:80px}
 }
 @media (prefers-reduced-motion: reduce){.pc.flash,.t7-banner{animation-duration:.01s}.pc.pick,.pc.sel{transform:none}}

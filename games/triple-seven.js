@@ -22,6 +22,7 @@ const POWER_RANKS = ['A', '2', '3', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'X'
 const PEEK_MS = 45000;        // time to choose the opening peek
 const AWAY_MS = 20000;        // a disconnected player's moves are made for them after this long
 const ROUND_END_MS = 14000;   // how long the round's reveal stays up
+const SHOW_MS = 5000;         // without "remember cards": how long a card you looked at stays visible
 
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Triple Seven error:', e); } };
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -34,6 +35,7 @@ const defaults = () => ({
   decks: 0,          // 0 = automatic: one deck per 6 players
   rounds: 1,
   allowCall: true,
+  remember: true,    // keep showing cards you've looked at; off = they flip back after a few seconds
   penalty: 10,
   powers: Object.fromEntries(POWER_RANKS.map(r => [r, true]))
 });
@@ -42,6 +44,7 @@ function cleanSettings(p, base) {
   if (p.decks !== undefined) s.decks = clampInt(p.decks, 0, 4, s.decks);
   if (p.rounds !== undefined) s.rounds = clampInt(p.rounds, 1, 10, s.rounds);
   if (typeof p.allowCall === 'boolean') s.allowCall = p.allowCall;
+  if (typeof p.remember === 'boolean') s.remember = p.remember;
   if (p.penalty !== undefined) s.penalty = clampInt(p.penalty, 0, 30, s.penalty);
   if (p.powers && typeof p.powers === 'object') for (const r of POWER_RANKS) if (typeof p.powers[r] === 'boolean') s.powers[r] = p.powers[r];
   return s;
@@ -83,7 +86,7 @@ function startRound(g) {
     for (const s of SUITS) for (const r of RANKS) g.pile.push({ id: g.nextId++, r, s });
     for (let k = 0; k < 2; k++) g.pile.push({ id: g.nextId++, r: 'X', s: null });
   }
-  for (const c of g.pile) Object.assign(c, { locked: false, up: false, known: new Set() });
+  for (const c of g.pile) Object.assign(c, { locked: false, up: false, known: new Map() });
   shuffle(g.pile);
   g.discard = [];
   g.rows = {};
@@ -99,7 +102,7 @@ function startRound(g) {
 function peekOpening(g, pid, id) {
   const c = g.rows[pid].find(x => x.id === id);
   if (!c || g.peeked.has(pid)) return false;
-  c.known.add(pid);
+  c.known.set(pid, Date.now());
   g.peeked.add(pid);
   log(g, { k: 'peek0', pid, idx: g.rows[pid].indexOf(c) });
   if (g.order.every(p => g.peeked.has(p))) {
@@ -124,7 +127,7 @@ function draw(g) {
   const t = g.turn;
   if (!g.pile.length) return endRound(g, 'pile');
   t.drawn = g.pile.shift();
-  t.drawn.known.add(t.pid);
+  t.drawn.known.set(t.pid, Date.now());
   t.step = 'decide';
   watchAway(g);
   g.ctx.broadcast();
@@ -219,9 +222,10 @@ function runQueue(g) {
       g.queue.unshift({ r: g.lastPower, echo: true });
       continue;
     }
-    g.lastPower = r;
+    // Echo copies the last power played, except Remove (7).
+    if (r !== '7') g.lastPower = r;
     if (r === '3') {
-      for (const c of g.rows[t.pid]) if (!c.locked) c.known.add(t.pid);
+      for (const c of g.rows[t.pid]) if (!c.locked) c.known.set(t.pid, Date.now());
       log(g, { k: 'fullsight', pid: t.pid });
       touch(g, g.rows[t.pid].map(c => c.id));
       g.queue.shift(); continue;
@@ -251,7 +255,7 @@ function applyPower(g, pid, p) {
       log(g, { k: 'add', pid, target: ps[0] });
       touch(g, [c.id]);
     } else if (r === '2') {
-      for (const c of g.rows[ps[0]]) if (!c.locked) c.known.add(pid);
+      for (const c of g.rows[ps[0]]) if (!c.locked) c.known.set(pid, Date.now());
       log(g, { k: 'spy', pid, target: ps[0] });
       touch(g, g.rows[ps[0]].map(c => c.id));
     } else if (r === 'X') {
@@ -277,7 +281,7 @@ function applyPower(g, pid, p) {
     return true;
   }
   if (r === '10') { L[0].c.up = true; log(g, { k: 'spot', pid, target: L[0].pid, idx: L[0].i, card: pub(L[0].c) }); }
-  if (r === 'J') { L[0].c.known.add(pid); log(g, { k: 'jpeek', pid, target: L[0].pid, idx: L[0].i }); }
+  if (r === 'J') { L[0].c.known.set(pid, Date.now()); log(g, { k: 'jpeek', pid, target: L[0].pid, idx: L[0].i }); }
   if (r === 'K') { L[0].c.locked = !L[0].c.locked; log(g, { k: L[0].c.locked ? 'lock' : 'unlock', pid, target: L[0].pid, idx: L[0].i }); }
   if (r === 'Q') {
     const [a, b] = L;
@@ -371,8 +375,12 @@ function view(g, viewer) {
   const rows = {};
   for (const pid of g.order) {
     rows[pid] = g.rows[pid].map(c => {
-      const see = reveal || c.up || c.known.has(viewer);
-      return { id: c.id, locked: c.locked, up: c.up, face: see ? pub(c) : null, priv: !reveal && !c.up && c.known.has(viewer) };
+      // Without "remember cards", a card you looked at is only shown for a few seconds.
+      const at = c.known.get(viewer);
+      const knows = at !== undefined && (g.s.remember || Date.now() - at < SHOW_MS);
+      const see = reveal || c.up || knows;
+      const priv = !reveal && !c.up && knows;
+      return { id: c.id, locked: c.locked, up: c.up, face: see ? pub(c) : null, priv, until: priv && !g.s.remember ? at + SHOW_MS : 0 };
     });
   }
   const t = g.turn;
