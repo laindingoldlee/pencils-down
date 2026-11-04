@@ -149,6 +149,9 @@ function renderEmoteBar() {
   if (!show || $('emoteIn').childElementCount) return;
   $('emoteIn').innerHTML = S.catalog.emotes.map(e =>
     `<button type="button" data-act="emote" data-k="${esc(e.id)}" aria-label="${esc(e.label)}" title="${esc(e.label)}">${emoteFace(e)}</button>`).join('');
+  // On phones the emotes sit behind a button that opens them all in a grid.
+  const first = S.catalog.emotes[0];
+  $('emoteToggle').innerHTML = `${first ? emoteFace(first) : ''}<span>Emotes</span>`;
 }
 function sendEmote(id) {
   const t = Date.now();
@@ -337,6 +340,12 @@ document.addEventListener('click', async e => {
       break;
     }
     case 'emote': sendEmote(k); break;
+    case 'emote-toggle': {
+      const open = !$('emotebar').classList.contains('open');
+      $('emotebar').classList.toggle('open', open);
+      b.setAttribute('aria-expanded', String(open));
+      break;
+    }
     case 'select': st.selected = k; render(); emit('select', { game: k }); break;
     case 'start': {
       b.disabled = true;

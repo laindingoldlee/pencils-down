@@ -42,7 +42,7 @@ Put recordings in `public/games/bw11/sounds/` named `single-kill`, `double-kill`
 
 ## Changing the emotes
 
-The emote list is `public/art/emotes/emotes.json`. Each emote shows its emoji until it has a picture. To use your own picture, put it in `public/art/emotes/` (PNG, GIF, SVG or WebP, square, transparent background, about 256×256) and add `"file": "laugh.png"` to that emote.
+The 18 emotes are in `public/art/emotes/`, listed in `emotes.json` in the order they appear in the emote bar. To add or change one, put a picture in that folder (PNG, GIF, SVG or WebP with a transparent background; about 176 pixels wide keeps it quick to load) and add or edit its line in `emotes.json`: an `id`, a `label` and the `file` name. On phones the emotes open from an "Emotes" button at the bottom of the screen.
 
 ## Putting it online for free (Render)
 

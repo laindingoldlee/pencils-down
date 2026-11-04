@@ -1,13 +1,95 @@
 {
-  "_help": "Each emote needs an id. Until it has a picture it shows the emoji. To use your own picture, put it in this folder and add \"file\": \"laugh.png\" to that emote.",
+  "_help": "Each emote needs an id, a label and a picture file in this folder (PNG, GIF, SVG or WebP; square-ish, transparent background). The order here is the order in the emote bar. An emote without a file shows its emoji instead.",
   "emotes": [
-    { "id": "laugh",  "label": "Laugh",       "emoji": "😂" },
-    { "id": "wow",    "label": "Wow",         "emoji": "😮" },
-    { "id": "love",   "label": "Love",        "emoji": "😍" },
-    { "id": "clap",   "label": "Applause",    "emoji": "👏" },
-    { "id": "fire",   "label": "On fire",     "emoji": "🔥" },
-    { "id": "cry",    "label": "Crying",      "emoji": "😭" },
-    { "id": "angry",  "label": "Angry",       "emoji": "😡" },
-    { "id": "think",  "label": "Hmm",         "emoji": "🤔" }
+    {
+      "id": "thumbs-up",
+      "label": "Thumbs up",
+      "file": "thumbs-up.webp"
+    },
+    {
+      "id": "cheering",
+      "label": "Cheering",
+      "file": "cheering.webp"
+    },
+    {
+      "id": "excited",
+      "label": "Excited",
+      "file": "excited.webp"
+    },
+    {
+      "id": "thank-you",
+      "label": "Thank you",
+      "file": "thank-you.webp"
+    },
+    {
+      "id": "smug",
+      "label": "Smug",
+      "file": "smug.webp"
+    },
+    {
+      "id": "shy",
+      "label": "Shy",
+      "file": "shy.webp"
+    },
+    {
+      "id": "shocked",
+      "label": "Shocked",
+      "file": "shocked.webp"
+    },
+    {
+      "id": "thinking",
+      "label": "Thinking",
+      "file": "thinking.webp"
+    },
+    {
+      "id": "focused",
+      "label": "Focused",
+      "file": "focused.webp"
+    },
+    {
+      "id": "confused",
+      "label": "Confused",
+      "file": "confused.webp"
+    },
+    {
+      "id": "come-on",
+      "label": "Come on!",
+      "file": "come-on.webp"
+    },
+    {
+      "id": "impatient",
+      "label": "Impatient",
+      "file": "impatient.webp"
+    },
+    {
+      "id": "bored",
+      "label": "Bored",
+      "file": "bored.webp"
+    },
+    {
+      "id": "exhausted",
+      "label": "Exhausted",
+      "file": "exhausted.webp"
+    },
+    {
+      "id": "frustrated",
+      "label": "Frustrated",
+      "file": "frustrated.webp"
+    },
+    {
+      "id": "facepalm",
+      "label": "Facepalm",
+      "file": "facepalm.webp"
+    },
+    {
+      "id": "sorry",
+      "label": "Sorry",
+      "file": "sorry.webp"
+    },
+    {
+      "id": "pleading",
+      "label": "Pleading",
+      "file": "pleading.webp"
+    }
   ]
 }
