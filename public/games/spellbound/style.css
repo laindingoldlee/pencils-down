@@ -145,3 +145,14 @@
   .sp{padding-inline:10px;border-radius:14px}
 }
 @media (prefers-reduced-motion: reduce){.sp-banner,.spseat.hit{animation-duration:.01s}}
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.sp.fitted{gap:10px}
+.sp.fitted .sp-round{flex:1 1 0;min-height:0;aspect-ratio:auto;--cw:clamp(26px,calc(var(--fit-h) * .06),48px)}
+.sp.fitted .sp-round.some{--cw:clamp(24px,calc(var(--fit-h) * .053),42px)}
+.sp.fitted .sp-round.many{--cw:clamp(22px,calc(var(--fit-h) * .046),38px)}
+.sp.fitted .spspot.mine{--cw:clamp(32px,calc(var(--fit-h) * .07),54px)}
+.sp.fitted .sp-center{--cw:clamp(28px,calc(var(--fit-h) * .055),44px)}
+.sp.fitted .sp-cast{--cw:clamp(22px,calc(var(--fit-h) * .042),32px)}
+.sp.fitted .sp-act{flex:none;padding:10px 14px;gap:8px}
+.sp.fitted .spells{max-width:min(760px,calc(var(--fit-h) * 1.15))}

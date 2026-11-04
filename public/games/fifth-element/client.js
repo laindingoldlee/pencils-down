@@ -102,6 +102,11 @@ function render(main, st) {
       <div class="fe-top">
         <div class="fe-title">The Fifth Element</div>
         <div class="fe-left"><span class="deckpile" id="feDeck"></span><span id="feLeft"></span></div>
+        ${H.dd('fe-how', 'How to play', `<ul>
+          <li>An item on the card in its <b>own color</b>? Click that item.</li>
+          <li>Both items in the <b>wrong color</b>? Cross out the two items and the two colors on the card. Click the item that’s left.</li>
+          <li>A wrong click burns one of your cards and locks you out until the next card. On a computer, keys 1–5 work too.</li>
+        </ul>`, 'fe-how')}
         <span id="feHostCtl"></span>
       </div>
       <div class="fe-seats" id="feSeats"></div>
@@ -111,13 +116,6 @@ function render(main, st) {
       </div>
       <div class="fe-items" id="feItems">${t.items.map((it, i) =>
         `<button type="button" class="fe-item" data-act="fe-pick" data-k="${i}" aria-label="${esc(it.name)}"><kbd>${i + 1}</kbd>${ico(it, it.color)}<span class="iname">${esc(it.name)}</span></button>`).join('')}</div>
-      <details class="fe-how"><summary>How to play</summary>
-        <ul>
-          <li>An item on the card in its <b>own color</b>? Click that item.</li>
-          <li>Both items in the <b>wrong color</b>? Cross out the two items and the two colors on the card. Click the item that’s left.</li>
-          <li>A wrong click burns one of your cards and locks you out until the next card. On a computer, keys 1–5 work too.</li>
-        </ul>
-      </details>
     </section>`;
   }
   update(st, g);

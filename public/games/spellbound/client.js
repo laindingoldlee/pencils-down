@@ -216,6 +216,8 @@ function render(main, st) {
   H.keepFocus(main, () => {
     main.innerHTML = `<section class="sp" lang="zh-Hant" aria-label="咒語大亂鬥">
       <div class="sp-top"><div class="sp-title">咒語大亂鬥 <small>第 ${g.round} 局 · 先到 ${g.settings.target} 分獲勝</small></div>
+        ${H.dd('sp-log', '戰況紀錄', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 'sp-log')}
+        ${H.dd('sp-rules', '玩法說明', rulesList(g.settings) + `<ul>${SP.slice(1).map((sp, i) => `<li><b>${i + 1}. ${sp.name}</b>（${g.settings.copies[i]} 顆）：${sp.short}${i === 7 ? `<br>輪盤（每格 1/8）：${WHEEL_SLICES.join('、')}` : ''}</li>`).join('')}</ul>`, 'sp-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? '再按一次結束' : '結束遊戲'}</button>` : ''}</div>
       ${cols ? center : ''}
       <div class="sp-round ${size}${cols ? ' cols' : ''}">
@@ -225,13 +227,8 @@ function render(main, st) {
       </div>
       ${playing ? '' : '<p class="muted" style="margin:0">你在遊戲開始後才加入，這一場先觀戰。</p>'}
       ${actHTML(g, st)}
-      <details class="sp-log"${L.logOpen ? ' open' : ''}><summary>戰況紀錄</summary><ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol></details>
-      <details class="sp-rules"><summary>玩法說明</summary>${rulesList(g.settings)}
-        <ul>${SP.slice(1).map((sp, i) => `<li><b>${i + 1}. ${sp.name}</b>（${g.settings.copies[i]} 顆）：${sp.short}${i === 7 ? `<br>輪盤（每格 1/8）：${WHEEL_SLICES.join('、')}` : ''}</li>`).join('')}</ul></details>
     </section>`;
   });
-  const lg = main.querySelector('.sp-log');
-  if (lg) lg.addEventListener('toggle', () => { L.logOpen = lg.open; });
 }
 
 function actHTML(g, st) {

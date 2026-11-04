@@ -42,7 +42,7 @@ Put recordings in `public/games/bw11/sounds/` named `single-kill`, `double-kill`
 
 ## Changing the emotes
 
-The 17 emotes are in `public/art/emotes/`, listed in `emotes.json` in the order they appear in the emote bar. To add or change one, put a picture in that folder (PNG, GIF, SVG or WebP with a transparent background; about 176 pixels wide keeps it quick to load) and add or edit its line in `emotes.json`: an `id`, a `label` and the `file` name. On phones the emotes open from an "Emotes" button at the bottom of the screen.
+The 17 emotes are in `public/art/emotes/`, listed in `emotes.json` in the order they appear in the emote bar. To add or change one, put a picture in that folder (PNG, GIF, SVG or WebP with a transparent background; about 176 pixels wide keeps it quick to load) and add or edit its line in `emotes.json`: an `id`, a `label` and the `file` name. Hover an emote to see its name. On phones the emotes open from an "Emotes" button at the bottom of the screen, with each name under its picture; the grid closes by itself a few seconds after your last emote or when you tap elsewhere.
 
 ## Putting it online for free (Render)
 
@@ -65,6 +65,7 @@ If Pencils Down is already running on Render from this repository, you don't nee
 - Rooms live only in the server's memory. If Render restarts the server (it does on every update), each page reconnects and the room comes back with the same code. A Pencils Down game carries on where it was; any other game in progress ends and everyone is back in the room. Avoid updating the site during game night.
 - Up to 20 people per room, and 12 per Pencils Down game.
 - If someone's phone drops out mid-game, the game waits a little, then plays or skips their turn for them, so nobody is stuck waiting.
+- On a computer, every game in the room fits the browser window without scrolling: the table stretches to fit, and with a big group the whole game shrinks a little if needed. "What happened" and "How to play" are drop-downs in each game's top bar.
 - Old Pencils Down links (`/ABCD`) now open a party room. Pencils Down itself lives at `/pencils-down/`.
 - To change something later, upload the edited file to the same GitHub repository and Render redeploys on its own.
 

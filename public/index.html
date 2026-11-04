@@ -143,6 +143,25 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .emotebar button.cool{opacity:.45}
 .emotebar img,.floatemote img{width:88%;height:88%;object-fit:contain;display:block}
 .emotebar .in img{pointer-events:none}
+/* hover an emote to see its name; on phones the name sits under it in the grid */
+.emotebar .in{flex-wrap:wrap;justify-content:center;overflow:visible}
+.emotebar .in button{position:relative}
+.emotebar .elbl{display:none}
+.emotebar .in button::after{content:attr(data-label);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:2;
+  background:var(--ink);color:var(--panel);font:700 .8rem var(--font-body);padding:4px 9px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .1s}
+.emotebar .in button:hover::after,.emotebar .in button:focus-visible::after{opacity:1}
+/* game screens on a computer fill the window (see fitGame in hub.js) */
+body.fitmode .shell{padding-bottom:0}
+.fitted{margin-bottom:0!important;overflow:hidden}
+/* "What happened" / "How to play" as small drop-downs in a game's top bar */
+.dd{position:relative;font-size:.9rem;width:auto!important;max-width:none!important;margin:0!important;flex:none}
+.dd > summary{cursor:pointer;list-style:none;font-weight:700;padding:3px 11px;border:1.5px solid currentColor;border-radius:999px;opacity:.8;white-space:nowrap}
+.dd > summary::-webkit-details-marker{display:none}
+.dd[open] > summary{opacity:1}
+.dd > .ddbody{position:absolute;right:0;top:calc(100% + 6px);z-index:60;width:min(440px,88vw);max-height:min(62vh,540px);overflow:auto;
+  background:#150F1F;color:#EFEAF8;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:12px 14px;box-shadow:0 14px 30px rgba(0,0,0,.55);text-align:left}
+.dd > .ddbody ol,.dd > .ddbody ul{margin:0;max-height:none}
+.dd > .ddbody ul + ul{margin-top:8px}
 .emotebar .etoggle{display:none}
 .floatemote:has(img){width:132px;height:132px;margin-left:-66px}
 @media (max-width:620px){.floatemote:has(img){width:104px;height:104px;margin-left:-52px}}
@@ -155,7 +174,10 @@ h1,h2,h3{text-wrap:balance;margin:0}
   .emotebar.open .etoggle::after{content:"▾"}
   .emotebar .in{display:none;grid-template-columns:repeat(6,1fr);gap:4px;justify-items:center;max-width:420px;margin:0 auto;overflow:visible}
   .emotebar.open .in{display:grid}
-  .emotebar .in button{width:52px;height:52px}
+  .emotebar .in button{width:56px;height:auto;padding:2px 0 3px;display:grid;justify-items:center;gap:1px}
+  .emotebar .in button img{width:44px;height:44px}
+  .emotebar .elbl{display:block;font:700 .62rem var(--font-body);color:var(--ink-soft);white-space:nowrap;max-width:56px;overflow:hidden;text-overflow:ellipsis}
+  .emotebar .in button::after{display:none}
 }
 .emotelayer{position:fixed;inset:0;pointer-events:none;z-index:25;overflow:hidden}
 .floatemote{position:absolute;width:80px;height:80px;margin-left:-40px;font-size:64px;line-height:80px;text-align:center;display:grid;place-items:center;

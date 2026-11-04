@@ -113,3 +113,9 @@
 @media (prefers-reduced-motion: reduce){
   .fe-card.face,.fe-card.back.wait .sigil,.seat.shake,.fe-item.wrong{animation:none}
 }
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.fe.fitted{gap:10px}
+.fe.fitted .fe-stage{flex:1 1 0;min-height:0;align-content:center}
+.fe.fitted .fe-cardwrap{width:auto;height:clamp(140px,calc(var(--fit-h) * .32),230px);max-width:100%}
+.fe.fitted .fe-items{flex:none}
