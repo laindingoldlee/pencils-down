@@ -77,9 +77,9 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .coderow{display:flex;gap:8px;align-items:center}
 .coderow input{width:7.2em;font-family:var(--font-display);letter-spacing:.12em;text-transform:uppercase}
 .formerror{color:var(--danger);font-weight:700;margin:0;min-height:1.4em}
-.gamelist{list-style:none;margin:0;padding:6px 22px 20px;display:flex;flex-wrap:wrap;gap:8px}
-.gamelist li{border:1.5px solid var(--line-strong);border-radius:999px;padding:4px 12px;font-weight:700;font-size:.92rem}
-.gamelist li.soon{border-style:dashed;color:var(--ink-soft);font-weight:400}
+.gcard.soon{border-style:dashed;opacity:.7}
+.howto h2{font-size:1.15rem;margin-bottom:8px}
+.howto ol{margin:0;padding-left:1.3em;display:grid;gap:6px;max-width:68ch}
 
 /* avatars */
 .av{--hue:260;width:var(--s,52px);height:var(--s,52px);border-radius:50%;display:grid;place-items:center;flex:none;position:relative;
@@ -156,7 +156,7 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:9px;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
 
 @media (max-width:520px){
-  .hero,.homeforms,.gamelist,.pad,.panel-head,.setting,.startrow,.games,.banner,.linkline{padding-inline:16px}
+  .hero,.homeforms,.pad,.panel-head,.setting,.startrow,.games,.banner,.linkline{padding-inline:16px}
   .crowd{padding-inline:12px;grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
   .emotebar button{width:42px;height:42px;font-size:24px}
 }

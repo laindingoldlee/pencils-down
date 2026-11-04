@@ -6,7 +6,7 @@
 window.Hub = (() => {
 'use strict';
 
-/* Every game the host can pick. Ones marked ready:false show as "coming soon". */
+/* Every game the host can pick. A game marked ready:false shows as "coming soon". */
 const GAME_LIST = [
   { id: 'pencils', name: 'Pencils Down', players: '2–12 players', ready: true,
     blurb: 'One letter, a handful of categories, one minute. Fill every box and shout stop.' },
@@ -255,7 +255,19 @@ function renderHome(main) {
           </div>`}
         <p class="formerror" id="homeError" role="alert"></p>
       </div>
-      <ul class="gamelist" aria-label="Games">${GAME_LIST.map(g => `<li class="${g.ready ? '' : 'soon'}">${esc(g.name)}${g.ready ? '' : ' · soon'}</li>`).join('')}</ul>
+    </section>
+    <section class="panel">
+      <header class="panel-head"><h2>The games</h2><span class="muted">Start a room, then the host picks one</span></header>
+      <div class="games">${GAME_LIST.map(g => `<div class="gcard${g.ready ? '' : ' soon'}"><span class="tag">${g.ready ? esc(g.players) : 'Coming soon'}</span><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p></div>`).join('')}</div>
+    </section>
+    <section class="panel pad howto">
+      <h2>How it works</h2>
+      <ol>
+        <li>One person starts a room and sends the link. Everyone else opens it and types a name. No accounts.</li>
+        <li>Tap the emotes at the bottom of the screen to react. They float up above your avatar for everyone.</li>
+        <li>The host picks a game, sets the house rules and starts it for the whole room.</li>
+        <li>When a game ends, play again or go back to the room and pick another one.</li>
+      </ol>
     </section>`;
   }
   setText('homeError', S.homeError);

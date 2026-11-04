@@ -15,9 +15,18 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 ## What's in here
 
 - `server.js` runs the website and the party rooms (players, host, emotes, starting games).
-- `games/pencils-down.js` is the Pencils Down game server. `public/pencils-down/index.html` is its page.
-- `games/fifth-element.js` is The Fifth Element game server (cards, scoring, sudden death). `public/games/fifth-element/` has its page code, styles and item sets.
-- `public/index.html` and `public/hub.js` are the party room page.
+- `public/index.html` and `public/hub.js` are the home page and the party room.
+- Each game has its rules and scoring on the server in `games/`, and its screen in `public/games/<game>/` (`client.js` and `style.css`):
+
+  | Game | Server | Screen |
+  |---|---|---|
+  | Pencils Down | `games/pencils-down.js` | `public/pencils-down/index.html` (its own page) |
+  | The Fifth Element | `games/fifth-element.js` | `public/games/fifth-element/` (plus item sets in `themes/`) |
+  | Black, White & Eleven | `games/black-white-eleven.js` | `public/games/bw11/` (plus announcer `sounds/`) |
+  | Spellbound Mayhem | `games/spellbound.js` | `public/games/spellbound/` |
+  | The Triple Seven | `games/triple-seven.js` | `public/games/t7/` |
+
+- `public/art/emotes/` holds the emote list.
 - `package.json` lists the two libraries the server uses (Express and Socket.IO).
 
 ## Adding a new item set to The Fifth Element
@@ -39,7 +48,7 @@ The emote list is `public/art/emotes/emotes.json`. Each emote shows its emoji un
 
 You need a free GitHub account and a free Render account. It takes about 15 minutes the first time.
 
-1. **Put the files on GitHub.** Sign in at github.com and create a new repository called `pencils-down`. On the empty repository page, click **uploading an existing file**. Drag in everything from this folder: `server.js`, `package.json`, `package-lock.json`, `README.md`, and the `public` and `games` folders. Click **Commit changes**.
+1. **Put the files on GitHub.** The code needs to be on the `main` branch of your GitHub repository (merge the pull request with the new games into `main`). If you're starting from scratch instead: create a repository, click **uploading an existing file**, and drag in `server.js`, `package.json`, `package-lock.json`, `README.md`, and the `public` and `games` folders.
 2. **Create the web service on Render.** Sign up at render.com (signing up with GitHub is easiest). Click **New**, then **Web Service**, and pick your `pencils-down` repository.
 3. **Fill in the settings:**
    - Language: **Node**
@@ -48,11 +57,15 @@ You need a free GitHub account and a free Render account. It takes about 15 minu
    - Instance type: **Free**
 4. Click **Deploy**. After a few minutes Render shows your address, something like `https://pencils-down-ab12.onrender.com`. Open it, start a room and send the link to your friends.
 
+If Pencils Down is already running on Render from this repository, you don't need to do anything else: once the new code is on `main`, Render updates on its own and the address stays the same.
+
 ## Good to know
 
 - The free server goes to sleep after 15 minutes with nobody playing. The first person to open the link after that waits about a minute while it wakes up. Open it a minute before game night.
-- Rooms live only in the server's memory. If Render restarts the server, each page reconnects and the room comes back with the same code. A Pencils Down game carries on where it was; a Fifth Element game in progress ends and everyone is back in the room.
+- Rooms live only in the server's memory. If Render restarts the server (it does on every update), each page reconnects and the room comes back with the same code. A Pencils Down game carries on where it was; any other game in progress ends and everyone is back in the room. Avoid updating the site during game night.
 - Up to 20 people per room, and 12 per Pencils Down game.
+- If someone's phone drops out mid-game, the game waits a little, then plays or skips their turn for them, so nobody is stuck waiting.
+- Old Pencils Down links (`/ABCD`) now open a party room. Pencils Down itself lives at `/pencils-down/`.
 - To change something later, upload the edited file to the same GitHub repository and Render redeploys on its own.
 
 ## Running it on your own computer
