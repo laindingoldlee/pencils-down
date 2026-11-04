@@ -23,6 +23,14 @@ const WHEEL_TEXT = {
   heal: '你獲得 1 生命', hurt: '你失去 1 生命', left: '左邊的玩家失去 1 生命', right: '右邊的玩家失去 1 生命',
   all: '所有人獲得 1 生命', peek: '偷看了自己的一顆符石', laugh: '什麼都沒發生，輪盤在嘲笑你'
 };
+const WHEEL_SLICES = ['你獲得 1 生命', '你失去 1 生命', '左邊的玩家失去 1 生命', '右邊的玩家失去 1 生命', '所有人獲得 1 生命', '偷看自己的一顆符石', '什麼都沒發生，輪盤在嘲笑你', '什麼都沒發生，輪盤在嘲笑你'];
+const ART = n => `/games/spellbound/art/spell-${n}.webp`;
+const FOG_ART = '/games/spellbound/art/fog.webp';
+/* The description shown when hovering a spell (or holding it on a phone). */
+const describe = n => `${n}. ${SP[n].name}：${SP[n].short}` + (n === 8 ? '\n輪盤（每格 1/8）：\n' + WHEEL_SLICES.map(x => '・' + x).join('\n') : '');
+function tipHTML(n) {
+  return `<span class="tip" role="tooltip"><b>${n}. ${esc(SP[n].name)}</b>${esc(SP[n].short)}${n === 8 ? `<span class="wheel"><b>輪盤（每格 1/8）</b>${WHEEL_SLICES.map(x => `<span>・${esc(x)}</span>`).join('')}</span>` : ''}</span>`;
+}
 const L = { targets: [], tkey: '', queue: [], showing: false };
 const nm = (pid, st) => (pid === st.you ? '你' : H.nameOf(pid));
 
@@ -45,12 +53,26 @@ function settings(st) {
     <div class="spset">${SET_LINES.map(([k, label, lo, hi]) => `<div class="line"><span>${label}</span>${stepper(k, s[k], k === 'maxLives' ? s.lives : lo, hi, host)}</div>`).join('')}</div></div>
   <div class="setting stack" lang="zh-Hant"><span class="label">每種咒語的數量 <small class="muted" style="font-weight:400">共 ${total} 顆${total < need ? `，<b style="color:var(--danger)">不夠 ${online} 人用（需要 ${need} 顆）</b>` : ''}</small></span>
     <div class="spset">${SP.slice(1).map((sp, i) => `<div class="line"><span>${i + 1}. ${sp.icon} ${sp.name}</span>${stepper('copies.' + i, s.copies[i], 0, 15, host)}</div>`).join('')}</div></div>
+  <div class="setting" lang="zh-Hant"><span class="label">由小到大猜<br><small class="muted" style="font-weight:400">同一回合裡，下一個猜的數字不能比上一次施放的小</small></span>
+    <div class="t7set">${tog('ascending', s.ascending, host)}</div></div>
+  <div class="setting" lang="zh-Hant"><span class="label">顯示「可能數量」提示<br><small class="muted" style="font-weight:400">關閉時，大家要自己算</small></span>
+    <div class="t7set">${tog('showOdds', s.showOdds, host)}</div></div>
   <div class="setting stack" lang="zh-Hant"><span class="label">玩法</span>${rulesList(s)}</div>`;
 }
+function tog(key, on, host) {
+  return `<button type="button" data-act="sp-tog" data-k="${key}|0" aria-pressed="${!on}" ${host ? '' : 'disabled'}>關</button><button type="button" data-act="sp-tog" data-k="${key}|1" aria-pressed="${!!on}" ${host ? '' : 'disabled'}>開</button>`;
+}
+H.on('sp-tog', (b, k) => {
+  const [key, v] = k.split('|');
+  H.st.settings.spell[key] = v === '1';
+  H.render();
+  H.emit('settings', { game: 'spell', patch: { [key]: v === '1' } });
+});
 function rulesList(s) {
   return `<ul class="rules">
     <li>每人有 ${s.stones} 顆符石。你看得到別人的符石，卻看不到自己的。</li>
     <li>輪到你時，說出一個你覺得自己有的咒語。猜對就施放，還可以繼續；猜錯失去 1 生命，回合結束。</li>
+    ${s.ascending ? '<li>同一回合要由小到大猜：可以 3、5、6、8，但猜了 6 之後不能回頭猜 3（同一個數字可以再猜）。</li>' : ''}
     <li>回合結束時補滿符石。至少要施放一次才能主動結束回合。</li>
     <li>有人倒下，或有人把手上的符石全部施放完，這一局就結束。</li>
     <li>擊倒別人得 ${s.killPts} 分，被擊倒的人 0 分。自己倒下（猜錯、自己的骰子或輪盤），其他人各得 ${s.selfPts} 分。施放完全部符石得 ${s.clearPts} 分。</li>
@@ -81,7 +103,25 @@ async function move(p) {
   if (!r.ok && r.error) H.toast(r.error);
   return r;
 }
-H.on('sp-cast', (b, k) => { b.disabled = true; move({ a: 'cast', spell: Number(k) }); });
+H.on('sp-cast', (b, k) => {
+  if (Date.now() < (L.noCastUntil || 0)) return; // that was a long press to read the description
+  b.disabled = true; move({ a: 'cast', spell: Number(k) });
+});
+/* Phones have no hover: holding a spell shows its description instead of casting it. */
+document.addEventListener('pointerdown', e => {
+  const b = e.target.closest && e.target.closest('.sp .spellcard');
+  if (!b || e.pointerType === 'mouse') return;
+  clearTimeout(L.press);
+  L.press = setTimeout(() => {
+    document.querySelectorAll('.sp .spellcard.tipon').forEach(x => x.classList.remove('tipon'));
+    b.classList.add('tipon');
+    L.noCastUntil = Date.now() + 800;
+  }, 450);
+});
+['pointerup', 'pointercancel', 'pointerleave'].forEach(ev => document.addEventListener(ev, () => clearTimeout(L.press), true));
+document.addEventListener('pointerdown', e => {
+  if (!(e.target.closest && e.target.closest('.sp .spellcard'))) document.querySelectorAll('.sp .spellcard.tipon').forEach(x => x.classList.remove('tipon'));
+}, true);
 H.on('sp-end', b => { b.disabled = true; move({ a: 'end' }); });
 H.on('sp-target', (b, k) => {
   const g = H.st.game;
@@ -95,10 +135,9 @@ H.on('sp-target', (b, k) => {
 /* ---------- drawing ---------- */
 function stoneHTML(n, opts) {
   const o = opts || {};
-  if (o.fog) return '<span class="stone fog" title="迷霧中">🌫️</span>';
-  if (n == null) return '<span class="stone back" title="看不到">?</span>';
-  const sp = SP[n];
-  return `<span class="stone${o.known ? ' known' : ''}" style="--sc:${sp.color}" title="${n}. ${sp.name}"><span class="ic">${sp.icon}</span>${n}</span>`;
+  if (o.fog) return `<span class="stone back fogged" title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
+  if (n == null) return '<span class="stone back" title="看不到"><span>?</span></span>';
+  return `<span class="stone art${o.known ? ' known' : ''}" title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
 }
 function hearts(n, max) {
   let h = '';
@@ -122,8 +161,8 @@ function seat(g, pid, st) {
   const stones = g.racks[pid].map(x => isMe
     ? stoneHTML(x.n, { known: x.n != null && g.phase === 'play' })
     : stoneHTML(x.n, { fog: fog && x.n == null }));
-  return `<div class="spseat${t && t.pid === pid ? ' turn' : ''}${g.lives[pid] <= 0 ? ' out' : ''}" data-seat="${esc(pid)}">
-    <div class="sphead">${H.avatar(pid, 38)}<span class="nm">${esc(isMe ? '你' : H.nameOf(pid))}<small>${t && t.pid === pid ? '施法中…' : ''}</small></span><span class="score">⭐ ${g.scores[pid]}</span></div>
+  return `<div class="spseat${t && t.pid === pid ? ' turn' : ''}${g.lives[pid] <= 0 ? ' out' : ''}${isMe ? ' me' : ''}" data-seat="${esc(pid)}">
+    <div class="sphead">${H.avatar(pid, isMe ? 34 : 28)}<span class="nm">${esc(isMe ? '你' : H.nameOf(pid))}<small>${t && t.pid === pid ? '施法中…' : ''}</small></span><span class="score">⭐ ${g.scores[pid]}</span></div>
     ${hearts(g.lives[pid], g.settings.maxLives)}
     ${tokens(g, pid, st)}
     <div class="stones">${stones.join('') || '<span class="muted">（沒有符石）</span>'}</div>
@@ -146,16 +185,49 @@ function render(main, st) {
   H.S.built = 'spell:' + st.code;
   const me = st.you;
   const playing = g.order.includes(me);
-  const order = playing ? [me, ...g.order.filter(p => p !== me)] : g.order;
+  // Seats go round the table: you at the bottom, the others clockwise in turn order.
+  const i0 = g.order.indexOf(me);
+  const around = playing ? [...g.order.slice(i0), ...g.order.slice(0, i0)] : g.order;
+  const n = around.length;
+  const narrow = window.innerWidth < 620;
+  const cols = narrow && n >= 3;
+  const leftN = Math.ceil((n - 1) / 2), rightN = n - 1 - leftN;
+  const spotAt = i => {
+    if (!cols) {
+      const a = Math.PI / 2 + (i * 2 * Math.PI) / n;
+      return [50 + (narrow ? 30 : 40) * Math.cos(a), 50 + (narrow ? 41 : 39) * Math.sin(a)];
+    }
+    if (i === 0) return [50, 86];
+    const rows = Math.max(leftN, rightN);
+    const yOf = j => (rows === 1 ? 40 : 68 - (j * 56) / (rows - 1));
+    if (i <= leftN) return [26, yOf(i - 1)];
+    return [74, yOf(rows - 1 - (i - 1 - leftN))];
+  };
+  const size = n <= 4 ? 'few' : n <= 6 ? 'some' : 'many';
+  const seats = around.map((pid, i) => {
+    const [x, y] = spotAt(i);
+    return `<div class="spspot${pid === me ? ' mine' : ''}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${seat(g, pid, st)}</div>`;
+  }).join('');
+  const recent = g.discard.slice(-5);
+  const center = `<div class="sp-center${cols ? ' out' : ''}">
+      <div class="sp-pile"><span class="stone back"><span>?</span></span><span><b>${g.pileLeft}</b><small>牌堆剩下</small></span></div>
+      <div class="sp-cast"><small>這局施放過</small><span class="row">${recent.length ? recent.map(x => stoneHTML(x)).join('') : '<span class="muted">還沒有</span>'}</span></div>
+    </div>`;
   H.keepFocus(main, () => {
     main.innerHTML = `<section class="sp" lang="zh-Hant" aria-label="咒語大亂鬥">
-      <div class="sp-top"><div class="sp-title">咒語大亂鬥 <small>第 ${g.round} 局 · 先到 ${g.settings.target} 分獲勝 · 牌堆 ${g.pileLeft} 顆</small></div>
+      <div class="sp-top"><div class="sp-title">咒語大亂鬥 <small>第 ${g.round} 局 · 先到 ${g.settings.target} 分獲勝</small></div>
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? '再按一次結束' : '結束遊戲'}</button>` : ''}</div>
+      ${cols ? center : ''}
+      <div class="sp-round ${size}${cols ? ' cols' : ''}">
+        <div class="sp-felt" aria-hidden="true"></div>
+        ${cols ? '' : center}
+        ${seats}
+      </div>
+      ${playing ? '' : '<p class="muted" style="margin:0">你在遊戲開始後才加入，這一場先觀戰。</p>'}
       ${actHTML(g, st)}
-      <div class="sp-seats">${order.map(pid => seat(g, pid, st)).join('')}</div>
       <details class="sp-log"${L.logOpen ? ' open' : ''}><summary>戰況紀錄</summary><ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol></details>
       <details class="sp-rules"><summary>玩法說明</summary>${rulesList(g.settings)}
-        <ul>${SP.slice(1).map((sp, i) => `<li><b>${i + 1}. ${sp.icon} ${sp.name}</b>（${g.settings.copies[i]} 顆）：${sp.short}</li>`).join('')}</ul></details>
+        <ul>${SP.slice(1).map((sp, i) => `<li><b>${i + 1}. ${sp.name}</b>（${g.settings.copies[i]} 顆）：${sp.short}${i === 7 ? `<br>輪盤（每格 1/8）：${WHEEL_SLICES.join('、')}` : ''}</li>`).join('')}</ul></details>
     </section>`;
   });
   const lg = main.querySelector('.sp-log');
@@ -174,19 +246,22 @@ function actHTML(g, st) {
   if (t.step === 'target') {
     const sp = SP[t.spell];
     const want = t.spell === 2 ? Math.min(2, g.order.length - 1) : 1;
-    const key = t.pid + ':' + t.casts;
+    const key = `${g.round}:${t.pid}:${t.casts}:${g.discard.length}`; // a fresh choice for every cast
     if (L.tkey !== key) { L.tkey = key; L.targets = []; }
     return `<div class="sp-act"><h3>${sp.icon} ${sp.name}：選${want === 2 ? '兩位' : '一位'}目標</h3><p class="muted">${sp.short}</p>
       <div class="targets">${g.order.filter(p => p !== me).map(p => `<button type="button" data-act="sp-target" data-k="${esc(p)}" aria-pressed="${L.targets.includes(p)}">${H.avatar(p, 28)}${esc(H.nameOf(p))}</button>`).join('')}</div></div>`;
   }
+  const showOdds = g.settings.showOdds;
   const o = odds(g, st);
+  const floor = g.settings.ascending ? t.last || 0 : 0;
   return `<div class="sp-act">
     <h3>${t.casts ? `猜對了！已施放 ${t.casts} 次。要繼續嗎？` : '輪到你了！你覺得自己有哪一顆符石？'}</h3>
-    <p class="muted">猜錯會失去 1 生命並結束回合。「可能」是扣掉你看得到的符石後，還可能在你手上或牌堆裡的數量${o.hidden ? '（有人在迷霧中，數字可能不準）' : ''}。</p>
+    <p class="muted">猜錯會失去 1 生命並結束回合。${floor ? `這回合已經施放了 ${floor}，只能猜 ${floor} 或更大的數字。` : ''}<span class="hint-hover">把滑鼠移到咒語上可以看說明。</span><span class="hint-touch">按住咒語可以看說明。</span></p>
     <div class="spells">${SP.slice(1).map((sp, i) => {
-      const n = i + 1, left = o.left(n);
-      return `<button type="button" class="spellbtn${left ? '' : ' zero'}" data-act="sp-cast" data-k="${n}">${stoneHTML(n)}<b>${n}. ${sp.name}</b><small>${sp.short}</small>
-        <span class="odds">可能 ${left} 顆${o.known[n] ? ` · 你確定有 ${o.known[n]} 顆` : ''}</span></button>`;
+      const n = i + 1, low = n < floor;
+      const left = o.left(n);
+      const badge = showOdds ? `<span class="odds">可能 ${left}${o.known[n] ? ` · 確定 ${o.known[n]}` : ''}</span>` : '';
+      return `<button type="button" class="spellcard${low ? ' low' : ''}" data-act="sp-cast" data-k="${n}" aria-label="${n}. ${esc(sp.name)}：${esc(sp.short)}" ${low ? 'disabled' : ''}><img src="${ART(n)}" alt="">${badge}${tipHTML(n)}</button>`;
     }).join('')}</div>
     ${t.casts ? '<div class="row"><button type="button" class="btn" data-act="sp-end">結束回合，補充符石</button></div>' : ''}
   </div>`;

@@ -25,7 +25,9 @@ const clampInt = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Num
 const defaults = () => ({
   stones: 5, lives: 6, maxLives: 6, target: 10,
   killPts: 3, clearPts: 3, selfPts: 1,
-  copies: [1, 2, 3, 4, 5, 6, 7, 8, 9]
+  copies: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  ascending: true,   // within a turn, each guess must be the same or a higher number than the last cast
+  showOdds: false    // show players how many of each spell could still be theirs
 });
 function cleanSettings(p, base) {
   const s = JSON.parse(JSON.stringify(base));
@@ -36,6 +38,8 @@ function cleanSettings(p, base) {
   if (p.killPts !== undefined) s.killPts = clampInt(p.killPts, 0, 10, s.killPts);
   if (p.clearPts !== undefined) s.clearPts = clampInt(p.clearPts, 0, 10, s.clearPts);
   if (p.selfPts !== undefined) s.selfPts = clampInt(p.selfPts, 0, 10, s.selfPts);
+  if (typeof p.ascending === 'boolean') s.ascending = p.ascending;
+  if (typeof p.showOdds === 'boolean') s.showOdds = p.showOdds;
   if (Array.isArray(p.copies)) s.copies = Array.from({ length: SPELLS }, (_, i) => clampInt(p.copies[i], 0, 15, s.copies[i]));
   if (s.maxLives < s.lives) s.maxLives = s.lives;
   return s;
@@ -92,7 +96,7 @@ function startTurn(g, pid) {
   // Life Link and Fog cast by this player wear off now.
   g.status[pid].link = null;
   for (const x of g.order) if (g.status[x].fog === pid) g.status[x].fog = null;
-  g.turn = { pid, step: 'cast', casts: 0, spell: 0 };
+  g.turn = { pid, step: 'cast', casts: 0, spell: 0, last: 0 };
   if (g.status[pid].silenced) {
     g.status[pid].silenced = false;
     log(g, { k: 'silenced', pid });
@@ -198,6 +202,7 @@ function pick(g, pid, p) {
     if (t.step !== 'cast') return { ok: false };
     const n = Number(p.spell);
     if (!Number.isInteger(n) || n < 1 || n > SPELLS) return { ok: false };
+    if (g.s.ascending && n < t.last) return { ok: false, error: `要由小到大猜：這回合已經施放了 ${t.last}，下一個不能小於 ${t.last}。` };
     const rack = g.racks[pid];
     const i = rack.findIndex(x => x.n === n);
     if (i < 0) {
@@ -211,6 +216,7 @@ function pick(g, pid, p) {
     g.known[pid].delete(stone.id);
     g.discard.push(stone.n);
     t.casts += 1;
+    t.last = n;
     g.status[pid].curse = null; // a correct cast lifts a curse
     log(g, { k: 'cast', pid, n });
     g.ctx.fx({ type: 'cast', pid, n });
@@ -313,7 +319,7 @@ function view(g, viewer) {
   return {
     id: 'spell', settings: g.s, phase: g.phase, round: g.round, order: g.order,
     scores: g.scores, lives: g.lives, racks, status, pileLeft: g.pile.length, discard: g.discard,
-    turn: g.turn ? { pid: g.turn.pid, step: g.turn.step, casts: g.turn.casts, spell: g.turn.spell } : null,
+    turn: g.turn ? { pid: g.turn.pid, step: g.turn.step, casts: g.turn.casts, spell: g.turn.spell, last: g.turn.last } : null,
     summary: g.summary, nextRoundAt: g.nextRoundAt, winners: g.winners, log: g.log.slice(-30)
   };
 }

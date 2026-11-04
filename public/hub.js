@@ -171,7 +171,9 @@ function showEmote(pid, id) {
   let x, y;
   if (els.length) {
     const r = els[0].getBoundingClientRect();
-    x = r.left + r.width / 2; y = r.top - 52;
+    // sit just above the avatar, bottom edge on its top
+    const h = window.innerWidth < 620 ? 104 : 132;
+    x = r.left + r.width / 2; y = r.top - h + 10;
   } else {
     x = window.innerWidth / 2; y = window.innerHeight / 2;
   }
@@ -183,7 +185,7 @@ function showEmote(pid, id) {
   el.style.left = x + 'px';
   el.style.top = Math.max(4, y) + 'px';
   layer.appendChild(el);
-  setTimeout(() => el.remove(), 2200);
+  setTimeout(() => el.remove(), 4400);
 }
 
 /* ---------- rendering ---------- */
