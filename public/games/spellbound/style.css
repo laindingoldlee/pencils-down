@@ -1,0 +1,96 @@
+/* 咒語大亂鬥: a spellbook table in deep plum and gold. */
+.sp{--bg1:#3B1230;--bg2:#1E0A1C;--ink:#FBEFF6;--soft:#D3B3C7;--gold:#F0C75E;--bad:#FF8A80;--good:#86E3B5;
+  background:radial-gradient(120% 90% at 50% 0%,var(--bg1),var(--bg2) 70%);color:var(--ink);border-radius:18px;box-shadow:var(--shadow);
+  padding:14px 16px 18px;display:flex;flex-direction:column;gap:14px;margin-bottom:16px;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",var(--font-body)}
+.sp *{min-width:0}
+.sp .muted{color:var(--soft)}
+.sp .linkbtn{color:var(--soft)}
+.sp .linkbtn.armed{color:var(--bad)}
+.sp .btn{border-color:var(--ink);color:var(--ink)}
+.sp .btn.primary{background:var(--gold);border-color:var(--gold);color:#2A0E22}
+.sp-top{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+.sp-title{font-family:var(--font-display),"Noto Sans TC",sans-serif;font-size:1.1rem;color:var(--gold);margin-right:auto;display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.sp-title small{font-family:inherit;font-size:.85rem;color:var(--soft)}
+
+/* players */
+.sp-seats{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.spseat{background:rgba(0,0,0,.22);border:1.5px solid transparent;border-radius:14px;padding:10px 12px;display:grid;gap:8px;transition:transform .2s}
+.spseat.turn{border-color:var(--gold);background:rgba(240,199,94,.08)}
+.spseat.out{opacity:.55}
+.spseat.hit{animation:sphit .45s}
+@keyframes sphit{20%,60%{transform:translateX(-5px)}40%,80%{transform:translateX(5px)}}
+.sphead{display:flex;align-items:center;gap:10px}
+.sphead .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sphead .nm small{display:block;font-weight:400;font-size:.78rem;color:var(--soft)}
+.sphead .score{margin-left:auto;font-family:var(--font-display);color:var(--gold);font-size:1.15rem;white-space:nowrap}
+.hearts{display:flex;flex-wrap:wrap;gap:2px;font-size:.95rem;line-height:1}
+.hearts .gone{opacity:.25;filter:grayscale(1)}
+.tokens{display:flex;gap:6px;flex-wrap:wrap;font-size:.8rem}
+.tokens span{background:rgba(255,255,255,.08);border-radius:999px;padding:2px 8px}
+.stones{display:flex;gap:6px;flex-wrap:wrap}
+.stone{width:44px;height:52px;border-radius:12px 12px 14px 14px;display:grid;place-items:center;align-content:center;gap:0;position:relative;
+  background:var(--sc,#555);color:#fff;font-family:var(--font-display);font-size:.95rem;line-height:1;
+  box-shadow:inset 0 -5px 0 rgba(0,0,0,.28),0 3px 6px rgba(0,0,0,.4)}
+.stone .ic{font-size:1.15rem;font-family:initial}
+.stone.back{background:repeating-linear-gradient(45deg,#4A2342 0 6px,#3F1D38 6px 12px);color:var(--soft)}
+.stone.fog{background:#5C5468;color:#D9D3E3}
+.stone.known::after{content:"👁";position:absolute;top:-6px;right:-6px;font-size:.75rem;background:#2A0E22;border-radius:50%;padding:1px}
+
+/* acting */
+.sp-act{background:rgba(0,0,0,.28);border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+.sp-act h3{font-size:1.1rem}
+.sp-act p{margin:0}
+.sp-act .row{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.spells{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px}
+.spellbtn{text-align:left;display:grid;grid-template-columns:auto minmax(0,1fr);gap:2px 10px;align-items:center;padding:8px 10px;border-radius:12px;
+  border:1.5px solid rgba(211,179,199,.35);background:rgba(0,0,0,.25);color:var(--ink)}
+.spellbtn:hover{border-color:var(--gold);background:rgba(240,199,94,.12)}
+.spellbtn .stone{grid-row:span 3;width:40px;height:46px}
+.spellbtn b{font-size:1rem}
+.spellbtn small{font-size:.78rem;color:var(--soft);line-height:1.3}
+.spellbtn .odds{font-size:.75rem;color:var(--gold)}
+.spellbtn.zero .odds{color:var(--soft)}
+.spellbtn:disabled{opacity:.5;cursor:default}
+.targets{display:flex;gap:8px;flex-wrap:wrap}
+.targets button{display:flex;align-items:center;gap:8px;padding:6px 12px 6px 6px;border-radius:999px;border:1.5px solid rgba(211,179,199,.4);background:rgba(0,0,0,.25);color:var(--ink);font-weight:700}
+.targets button[aria-pressed="true"]{border-color:var(--gold);background:rgba(240,199,94,.2)}
+
+.sp-sum{display:grid;gap:6px}
+.sp-sum li{margin:0}
+.sp-board{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.sp-board li{display:grid;grid-template-columns:2rem auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 4px;border-top:1px solid rgba(211,179,199,.15)}
+.sp-board .pl{font-family:var(--font-display);color:var(--soft);text-align:center}
+.sp-board .pt{font-family:var(--font-display);color:var(--gold);font-size:1.15rem}
+.sp-board .gain{color:var(--good);font-weight:700;font-size:.85rem;margin-left:6px}
+.sp-winner{font-size:clamp(1.6rem,5vw,2.4rem);font-weight:900;color:var(--gold)}
+
+.sp-log,.sp-rules{font-size:.9rem;color:var(--soft)}
+.sp-log summary,.sp-rules summary{cursor:pointer;font-weight:700;color:var(--ink)}
+.sp-log ol{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:3px;max-height:240px;overflow:auto}
+.sp-rules ul{margin:8px 0 0;padding-left:1.2em;display:grid;gap:4px}
+
+.sp-banner{position:fixed;left:50%;top:20%;z-index:40;transform:translateX(-50%);pointer-events:none;text-align:center;max-width:calc(100% - 24px);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;font-weight:900;font-size:clamp(1.4rem,6vw,2.6rem);line-height:1.15;
+  color:#FFE7A0;text-shadow:0 3px 0 #5A2A00,0 0 22px rgba(240,199,94,.65),0 6px 16px rgba(0,0,0,.6);animation:spban 1.5s cubic-bezier(.2,1.4,.4,1) forwards}
+.sp-banner.red{color:#FF6A5E;text-shadow:0 3px 0 #4A0A06,0 0 22px rgba(255,80,70,.7),0 6px 16px rgba(0,0,0,.6)}
+.sp-banner small{display:block;font-size:.5em;font-weight:700;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.8);margin-top:6px}
+@keyframes spban{0%{transform:translateX(-50%) scale(2);opacity:0}15%{transform:translateX(-50%) scale(1);opacity:1}80%{opacity:1}100%{opacity:0}}
+
+/* host settings in the room */
+.spset{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:4px 18px;align-content:start;grid-auto-rows:min-content}
+.setting.stack:has(.spset){flex-wrap:nowrap}
+.spset .line{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line)}
+.spset .line span:first-child{font-weight:700}
+.spstep{display:flex;align-items:center;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;flex:none}
+.spstep button{width:34px;height:32px;border:0;background:transparent;font-weight:700;font-size:1.1rem}
+.spstep button:disabled{opacity:.3;cursor:default}
+.spstep output{min-width:40px;text-align:center;font-family:var(--font-display);border-inline:1.5px solid var(--ink);padding:5px 4px;font-variant-numeric:tabular-nums}
+
+@media (max-width:520px){
+  .sp{padding-inline:10px;border-radius:14px}
+  .sp-seats{grid-template-columns:minmax(0,1fr)}
+  .spells{grid-template-columns:minmax(0,1fr)}
+  .stone{width:40px;height:48px}
+}
+@media (prefers-reduced-motion: reduce){.sp-banner,.spseat.hit{animation-duration:.01s}}

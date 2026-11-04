@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <mask id="ridges" maskUnits="userSpaceOnUse" x="0" y="0" width="128" height="128">
+      <rect width="128" height="128" fill="#fff"/>
+      <g fill="none" stroke="#000" stroke-linecap="round" stroke-width="3.5">
+        <path d="M64 112 13 48M64 112 27 27M64 112 46 15M64 112 64 11M64 112 82 15M64 112 101 27M64 112 115 48"/>
+      </g>
+    </mask>
+  </defs>
+  <path fill="#000" mask="url(#ridges)" d="M64 119c-5-10-11-18-19-25C28 77 8 62 10 43c1-11 8-19 18-20 2-13 13-19 25-13 7-11 20-11 27 0 12-6 23 0 25 13 10 1 17 9 18 20 2 19-18 34-35 51-8 7-14 15-19 25Z"/>
+</svg>

@@ -1,0 +1,10 @@
+{
+  "name": "Magic",
+  "items": [
+    { "name": "Flame",   "file": "flame.svg",   "color": "#E8402F", "colorName": "red" },
+    { "name": "Leaf",    "file": "leaf.svg",    "color": "#2EAF4E", "colorName": "green" },
+    { "name": "Crystal", "file": "crystal.svg", "color": "#2F7BEB", "colorName": "blue" },
+    { "name": "Shell",   "file": "shell.svg",   "color": "#F6C619", "colorName": "yellow" },
+    { "name": "Moon",    "file": "moon.svg",    "color": "#F4F1E6", "colorName": "white" }
+  ]
+}

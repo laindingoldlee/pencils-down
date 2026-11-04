@@ -1,7 +1,7 @@
 {
   "name": "pencils-down",
   "version": "1.0.0",
-  "description": "A live letter-and-categories word game to play with friends in the browser.",
+  "description": "Game Night: live party games to play with friends in the browser (Pencils Down, The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven).",
   "main": "server.js",
   "private": true,
   "scripts": {
