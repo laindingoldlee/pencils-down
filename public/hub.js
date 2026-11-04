@@ -148,12 +148,24 @@ function renderEmoteBar() {
   document.body.classList.toggle('inroom', show);
   if (!show || $('emoteIn').childElementCount) return;
   $('emoteIn').innerHTML = S.catalog.emotes.map(e =>
-    `<button type="button" data-act="emote" data-k="${esc(e.id)}" aria-label="${esc(e.label)}" title="${esc(e.label)}">${emoteFace(e)}</button>`).join('');
+    `<button type="button" data-act="emote" data-k="${esc(e.id)}" aria-label="${esc(e.label)}" data-label="${esc(e.label)}">${emoteFace(e)}<span class="elbl">${esc(e.label)}</span></button>`).join('');
   // On phones the emotes sit behind a button that opens them all in a grid.
   const first = S.catalog.emotes[0];
   $('emoteToggle').innerHTML = `${first ? emoteFace(first) : ''}<span>Emotes</span>`;
 }
+function closeEmotes() {
+  clearTimeout(S.emoteCloseT);
+  $('emotebar').classList.remove('open');
+  $('emoteToggle').setAttribute('aria-expanded', 'false');
+}
+// On phones the emote grid closes by itself when you tap anywhere else.
+document.addEventListener('pointerdown', e => {
+  if ($('emotebar').classList.contains('open') && !e.target.closest('#emotebar')) closeEmotes();
+}, true);
 function sendEmote(id) {
+  // ...and a few seconds after your last emote, so it never sits over the game.
+  clearTimeout(S.emoteCloseT);
+  S.emoteCloseT = setTimeout(closeEmotes, 3000);
   const t = Date.now();
   if (t - S.emoteAt < 650) return;
   S.emoteAt = t;
@@ -215,11 +227,41 @@ function render() {
   if (!st) return renderHome(main);
   if (st.game && games[st.game.id]) {
     document.title = games[st.game.id].title + ' · Game Night';
-    return games[st.game.id].render(main, st, api);
+    games[st.game.id].render(main, st, api);
+    return fitGame();
   }
   document.title = 'Game Night';
   renderRoom(main, st);
+  fitGame();
 }
+
+/* On a computer, a game fills exactly the window: no scrolling and no zooming needed.
+   The game's own layout stretches to the height it's given; if it still doesn't fit
+   (a big group, a small window), the whole game is shrunk just enough to fit. */
+const fitsScreen = () => window.innerWidth >= 900 && window.innerHeight >= 480 && matchMedia('(hover: hover) and (pointer: fine)').matches;
+function fitGame() {
+  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7');
+  const on = !!sec && fitsScreen();
+  document.body.classList.toggle('fitmode', on);
+  if (!sec) return;
+  sec.style.zoom = '';
+  if (!on) { sec.classList.remove('fitted'); sec.style.height = ''; sec.style.removeProperty('--fit-h'); return; }
+  const bar = $('emotebar');
+  const barH = bar.hidden ? 0 : bar.offsetHeight;
+  const top = sec.getBoundingClientRect().top + window.scrollY;
+  const avail = Math.max(400, window.innerHeight - top - barH - 10);
+  const setH = h => { sec.style.height = h + 'px'; sec.style.setProperty('--fit-h', h + 'px'); };
+  sec.classList.add('fitted');
+  setH(avail);
+  const need = sec.scrollHeight;
+  if (need > avail + 2) {
+    const z = Math.max(0.55, avail / need);
+    sec.style.zoom = z;
+    setH(Math.floor(avail / z));
+  }
+}
+let fitT = null;
+window.addEventListener('resize', () => { clearTimeout(fitT); fitT = setTimeout(fitGame, 120); });
 function renderNotice() {
   const el = $('notice');
   let html = '';
@@ -392,9 +434,19 @@ setInterval(() => {
   if (S.arm && Date.now() - S.arm.at >= 3500) { S.arm = null; render(); }
 }, 100);
 
+/* Game drop-downs ("What happened", "How to play") stay open across redraws. */
+const ddOpen = {};
+document.addEventListener('toggle', e => {
+  const d = e.target;
+  if (d.matches && d.matches('details[data-dd]')) ddOpen[d.dataset.dd] = d.open;
+}, true);
+function dd(key, label, body, cls) {
+  return `<details class="dd ${cls || ''}" data-dd="${key}"${ddOpen[key] ? ' open' : ''}><summary>${label}</summary><div class="ddbody">${body}</div></details>`;
+}
+
 /* What games get to use. */
 const api = {
-  S, esc, emit, now, toast, setText, keepFocus, avatar, nameOf, player, isHost, armed, arm, render,
+  S, esc, emit, now, toast, setText, keepFocus, avatar, nameOf, player, isHost, armed, arm, render, dd,
   get catalog() { return S.catalog; },
   get st() { return S.st; },
   on(act, fn) { handlers[act] = fn; }

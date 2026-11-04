@@ -227,6 +227,8 @@ function render(main, st) {
         </div>`;
   const html = `<section class="t7" aria-label="The Triple Seven">
       <div class="t7-top"><div class="t7-title">The Triple Seven<small>${g.settings.rounds > 1 ? `Round ${g.round} of ${g.settings.rounds}` : ''}</small></div>
+        ${H.dd('t7-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 't7-log')}
+        ${H.dd('t7-rules', 'How to play', rulesList(g.settings) + `<ul>${ORDER.filter(r => g.settings.powers[r] !== false).map(r => `<li><b>${rankName(r)}</b>: ${esc(POWER[r].long)}</li>`).join('')}</ul>`, 't7-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
       ${cols ? center : ''}
       <div class="t7-round ${size}${cols ? ' cols' : ''}">
@@ -236,16 +238,11 @@ function render(main, st) {
       </div>
       ${playing ? '' : '<p class="muted" style="margin:0">You joined after this game started, so you’re watching this one.</p>'}
       ${actHTML(g, st, pickPlayers)}
-      <details class="t7-log"${L.logOpen ? ' open' : ''}><summary>What happened</summary><ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol></details>
-      <details class="t7-rules"><summary>How to play</summary>${rulesList(g.settings)}
-        <ul>${ORDER.filter(r => g.settings.powers[r] !== false).map(r => `<li><b>${rankName(r)}</b>: ${esc(POWER[r].long)}</li>`).join('')}</ul></details>
     </section>`;
   // Only touch the page when something on it actually changed.
   if (html === L.lastHTML && main.querySelector('.t7')) return;
   L.lastHTML = html;
   H.keepFocus(main, () => { main.innerHTML = html; });
-  const lg = main.querySelector('.t7-log');
-  if (lg) lg.addEventListener('toggle', () => { L.logOpen = lg.open; });
 }
 
 function powerText(r) { return POWER[r] ? POWER[r].long : ''; }

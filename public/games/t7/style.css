@@ -148,3 +148,14 @@
   .pc.big{--w:80px}
 }
 @media (prefers-reduced-motion: reduce){.pc.flash,.t7-banner{animation-duration:.01s}.pc.pick,.pc.sel{transform:none}}
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.t7.fitted{gap:10px}
+.t7.fitted .t7-round{flex:1 1 0;min-height:0;aspect-ratio:auto;--cw:clamp(28px,calc(var(--fit-h) * .066),56px)}
+.t7.fitted .t7-round.some{--cw:clamp(26px,calc(var(--fit-h) * .058),50px)}
+.t7.fitted .t7-round.many{--cw:clamp(24px,calc(var(--fit-h) * .05),44px)}
+.t7.fitted .t7spot.mine{--cw:clamp(34px,calc(var(--fit-h) * .076),62px)}
+.t7.fitted .t7-center{--cw:clamp(32px,calc(var(--fit-h) * .062),54px)}
+.t7.fitted .t7-act{flex:none;padding:10px 14px;gap:8px}
+.t7.fitted .pc.big{--w:clamp(60px,calc(var(--fit-h) * .1),92px)}
+.t7.fitted .t7-recent{display:none}
