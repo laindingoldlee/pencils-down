@@ -393,6 +393,14 @@ io.on('connection', socket => {
     broadcast(c.room);
   });
 
+  // The host ends the game being played now and shows its final result (games that support it).
+  on('endNow', (p, reply) => {
+    const c = ctx();
+    if (!c || !c.isHost || !c.room.game || !GAMES[c.room.game.id].endNow) return reply({ ok: false });
+    GAMES[c.room.game.id].endNow(c.room.game);
+    reply({ ok: true });
+  });
+
   on('toRoom', (p, reply) => {
     const c = ctx();
     if (!c || !c.isHost) return reply({ ok: false });
