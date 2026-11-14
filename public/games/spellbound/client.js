@@ -133,7 +133,7 @@ function stoneHTML(n, opts) {
   const id = o.id ? ` data-id="${o.id}"` : '';
   if (o.fog) return `<span class="stone back fogged"${id} title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
   if (n == null) return `<span class="stone back"${id} title="看不到"><span>?</span></span>`;
-  return `<span class="stone art${o.known ? ' known' : ''}"${id} title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
+  return `<span class="stone art${o.known ? ' known' : ''}"${id} data-n="${n}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
 }
 function hearts(n, max) {
   let h = '';
@@ -221,7 +221,7 @@ function render(main, st) {
   const side = `<div class="sp-cast"><small>這局施放過</small>
         <div class="played">${SP.slice(1).map((sp, i) => {
           const n = i + 1, count = played[n], incoming = Math.min(count, L.landing[n] || 0);
-          return `<div class="prow" data-n="${n}" title="${esc(describe(n))}"><span class="pn">${n}</span><span class="pstones">${Array.from({ length: count }, (_, k) => `<img src="${ART(n)}" alt=""${k >= count - incoming ? ' class="incoming"' : ''}>`).join('')}</span></div>`;
+          return `<div class="prow" data-n="${n}"><span class="pn">${n}</span><span class="pstones">${Array.from({ length: count }, (_, k) => `<img src="${ART(n)}" alt=""${k >= count - incoming ? ' class="incoming"' : ''}>`).join('')}</span></div>`;
         }).join('')}</div></div>`;
   H.keepFocus(main, () => {
     main.innerHTML = `<section class="sp" lang="zh-Hant" aria-label="咒語大亂鬥">
@@ -352,6 +352,40 @@ function spinWheel(roll, ms, who) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), (ms || 2600) + 1600);
 }
+
+/* ---------- card details on hover ----------
+   Hovering a visible stone (an opponent's, or one in the cast-stones panel) shows the card large
+   with what it does. On phones, tapping one does the same; tapping anywhere else hides it. */
+function hoverCard(n, anchor) {
+  let el = document.getElementById('spHover');
+  if (!el) { el = document.createElement('div'); el.id = 'spHover'; el.className = 'sp-hovercard'; el.setAttribute('lang', 'zh-Hant'); el.setAttribute('role', 'tooltip'); document.body.appendChild(el); }
+  const played = H.st && H.st.game && H.st.game.discard ? H.st.game.discard.filter(x => x === n).length : 0;
+  const total = H.st && H.st.game ? H.st.game.settings.copies[n - 1] : 0;
+  el.innerHTML = `<img src="${ART(n)}" alt=""><div class="txt"><b>${n}. ${esc(SP[n].name)}</b><span>${esc(SP[n].short)}</span>${SP[n].extra ? `<span class="extra">${esc(SP[n].extra)}</span>` : ''}<small>共 ${total} 顆 · 這局施放過 ${played} 顆</small></div>`;
+  el.hidden = false;
+  const r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+  let x = r.left + r.width / 2 - w / 2, y = r.top - h - 10;
+  if (y < 8) y = r.bottom + 10;
+  el.style.left = Math.max(8, Math.min(innerWidth - w - 8, x)) + 'px';
+  el.style.top = Math.max(8, Math.min(innerHeight - h - 8, y)) + 'px';
+}
+function hideHoverCard() { const el = document.getElementById('spHover'); if (el) el.hidden = true; }
+const hoverTarget = t => t.closest && (t.closest('.sp .spseat .stone.art[data-n]') || t.closest('.sp .sp-cast .prow[data-n]'));
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return;
+  const a = hoverTarget(e.target);
+  if (a) hoverCard(Number(a.dataset.n), a);
+});
+document.addEventListener('pointerout', e => {
+  if (e.pointerType !== 'mouse') return;
+  const a = hoverTarget(e.target);
+  if (a && !(e.relatedTarget && a.contains(e.relatedTarget))) hideHoverCard();
+});
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  const a = hoverTarget(e.target);
+  if (a) hoverCard(Number(a.dataset.n), a); else hideHoverCard();
+}, true);
 
 /* ---------- calling a spell ----------
    1. a bubble pops out of the caller's seat with the spell they called;
