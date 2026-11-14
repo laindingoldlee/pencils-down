@@ -372,6 +372,11 @@ function fx(e) {
 }
 
 Hub.registerGame('t7', {
+  myMove(st) {
+    const g = st.game, t = g.turn;
+    if (g.phase === 'peek' && g.order.includes(st.you) && !g.peeked.includes(st.you)) return 'Look at a card';
+    return g.phase === 'play' && t && t.pid === st.you ? 'Your turn' : '';
+  },
   title: 'The Triple Seven',
   settings,
   render,

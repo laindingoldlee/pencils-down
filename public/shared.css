@@ -1,0 +1,62 @@
+/* Shared by the party room and Pencils Down: the emote bar, floating emotes,
+   and the sound button. Colors come from each page's own variables. */
+body.inroom{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
+/* emotes */
+.emotebar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel,var(--sheet)) 92%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line,var(--rule))}
+.emotebar .in{display:flex;gap:4px;overflow-x:auto;max-width:100%;scrollbar-width:none}
+.emotebar button{flex:none;width:48px;height:48px;border-radius:12px;border:1px solid transparent;background:transparent;font-size:28px;line-height:1;display:grid;place-items:center;padding:0;transition:transform .12s}
+.emotebar button:hover{background:var(--hilite);border-color:var(--line,var(--rule))}
+.emotebar button:active{transform:scale(.88)}
+.emotebar button.cool{opacity:.45}
+.emotebar img,.floatemote img{width:88%;height:88%;object-fit:contain;display:block}
+.emotebar .in img{pointer-events:none}
+/* hover an emote to see its name; on phones the name sits under it in the grid */
+.emotebar .in{flex-wrap:wrap;justify-content:center;overflow:visible}
+.emotebar .in button{position:relative}
+.emotebar .elbl{display:none}
+.emotebar .in button::after{content:attr(data-label);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:2;
+  background:var(--ink);color:var(--panel,var(--sheet));font:700 .8rem var(--font-body);padding:4px 9px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .1s}
+.emotebar .in button:focus-visible::after{opacity:1}
+.emotebar .etoggle{display:none}
+.floatemote:has(img){width:190px;height:190px;margin-left:-95px}
+@media (max-width:620px){.floatemote:has(img){width:140px;height:140px;margin-left:-70px}}
+/* hovering an emote in the bar shows it large until the mouse moves away */
+.emotepreview{position:fixed;z-index:35;pointer-events:none;display:grid;justify-items:center;gap:4px;transform:translateX(-50%);
+  background:var(--panel,var(--sheet));border:1px solid var(--line-strong,var(--rule-strong));border-radius:16px;padding:10px 12px 8px;box-shadow:var(--shadow)}
+.emotepreview img{width:170px;height:170px;object-fit:contain;display:block}
+.emotepreview span{font-weight:700;font-size:.95rem}
+/* phones: a button opens all the emotes in a grid above the bar */
+@media (max-width:760px){
+  .emotebar{flex-direction:column;align-items:stretch;gap:6px}
+  .emotebar .etoggle{display:flex;align-items:center;justify-content:center;gap:8px;width:auto;height:44px;margin:0 auto;padding:0 16px 0 6px;border:1.5px solid var(--line-strong,var(--rule-strong));border-radius:999px;font:700 .95rem var(--font-body);color:var(--ink)}
+  .emotebar .etoggle img{width:34px;height:34px}
+  .emotebar .etoggle::after{content:"▴";font-size:.8rem;color:var(--ink-soft)}
+  .emotebar.open .etoggle::after{content:"▾"}
+  .emotebar .in{display:none;grid-template-columns:repeat(6,1fr);gap:4px;justify-items:center;max-width:420px;margin:0 auto;overflow:visible}
+  .emotebar.open .in{display:grid}
+  .emotebar .in button{width:56px;height:auto;padding:2px 0 3px;display:grid;justify-items:center;gap:1px}
+  .emotebar .in button img{width:44px;height:44px}
+  .emotebar .elbl{display:block;font:700 .62rem var(--font-body);color:var(--ink-soft);white-space:nowrap;max-width:56px;overflow:hidden;text-overflow:ellipsis}
+  .emotebar .in button::after{display:none}
+}
+.emotelayer{position:fixed;inset:0;pointer-events:none;z-index:25;overflow:hidden}
+.floatemote{position:absolute;width:80px;height:80px;margin-left:-40px;font-size:64px;line-height:80px;text-align:center;display:grid;place-items:center;
+  filter:drop-shadow(0 6px 10px rgba(0,0,0,.35));animation:floatup 4.2s cubic-bezier(.2,.8,.3,1) forwards}
+/* pops up, hangs above the avatar for a few seconds, then drifts up and fades */
+@keyframes floatup{
+  0%{transform:translateY(20px) scale(.3);opacity:0}
+  7%{transform:translateY(-8px) scale(1.12);opacity:1}
+  12%{transform:translateY(-12px) scale(1)}
+  80%{transform:translateY(-24px) scale(1);opacity:1}
+  100%{transform:translateY(-70px) scale(.95);opacity:0}
+}
+@media (max-width:520px){
+  .emotebar button{width:42px;height:42px;font-size:24px}
+}
+@media (prefers-reduced-motion: reduce){
+  .floatemote{animation-duration:3.5s}
+}
+/* sound on/off button in the page header */
+.soundbtn{border:1.5px solid var(--line-strong,var(--rule-strong));background:transparent;border-radius:999px;width:38px;height:38px;display:grid;place-items:center;font-size:1.1rem;padding:0;flex:none;cursor:pointer}
+.soundbtn:hover{background:var(--hilite)}
+

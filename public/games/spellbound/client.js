@@ -469,6 +469,7 @@ function fx(e) {
 }
 
 Hub.registerGame('spell', {
+  myMove(st) { const t = st.game.turn; return st.game.phase === 'play' && t && t.pid === st.you ? '輪到你了' : ''; },
   title: '咒語大亂鬥',
   settings,
   render,

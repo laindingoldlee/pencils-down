@@ -88,7 +88,7 @@ socket.on('state', st => {
   render();
 });
 socket.on('goto', p => { if (p && typeof p.url === 'string' && p.url.startsWith('/')) location.href = p.url; });
-socket.on('emote', p => showEmote(p.pid, p.id));
+socket.on('emote', p => Shared.emotes.play(p.pid, p.id));
 socket.on('fx', fx => {
   const st = S.st;
   if (st && st.game && games[st.game.id] && games[st.game.id].fx) games[st.game.id].fx(fx, st.game, api);
@@ -137,91 +137,8 @@ async function create(name) {
   render();
 }
 
-/* ---------- emotes ---------- */
-function emoteFace(e) {
-  return e.src ? `<img src="${esc(e.src)}" alt="">` : esc(e.emoji || '🙂');
-}
-function renderEmoteBar() {
-  const bar = $('emotebar');
-  const show = !!S.st && S.catalog.emotes.length > 0;
-  bar.hidden = !show;
-  document.body.classList.toggle('inroom', show);
-  if (!show || $('emoteIn').childElementCount) return;
-  $('emoteIn').innerHTML = S.catalog.emotes.map(e =>
-    `<button type="button" data-act="emote" data-k="${esc(e.id)}" aria-label="${esc(e.label)}" data-label="${esc(e.label)}">${emoteFace(e)}<span class="elbl">${esc(e.label)}</span></button>`).join('');
-  // On phones the emotes sit behind a button that opens them all in a grid.
-  const first = S.catalog.emotes[0];
-  $('emoteToggle').innerHTML = `${first ? emoteFace(first) : ''}<span>Emotes</span>`;
-}
-/* Hovering an emote in the bar shows it large, with its name, until the mouse moves away. */
-function showPreview(b) {
-  const e = S.catalog.emotes.find(x => x.id === b.dataset.k);
-  if (!e || !e.src) return;
-  let p = $('emotePreview');
-  if (!p) { p = document.createElement('div'); p.id = 'emotePreview'; p.className = 'emotepreview'; p.setAttribute('aria-hidden', 'true'); document.body.appendChild(p); }
-  p.innerHTML = `<img src="${esc(e.src)}" alt=""><span>${esc(e.label)}</span>`;
-  const r = b.getBoundingClientRect();
-  const half = 100;
-  p.style.left = Math.min(window.innerWidth - half - 8, Math.max(half + 8, r.left + r.width / 2)) + 'px';
-  p.style.bottom = (window.innerHeight - r.top + 8) + 'px';
-  p.hidden = false;
-}
-function hidePreview() { const p = $('emotePreview'); if (p) p.hidden = true; }
-document.addEventListener('pointerover', e => {
-  if (e.pointerType !== 'mouse') return;
-  const b = e.target.closest && e.target.closest('#emoteIn button');
-  if (b) showPreview(b);
-});
-document.addEventListener('pointerout', e => {
-  const b = e.target.closest && e.target.closest('#emoteIn button');
-  if (b && !(e.relatedTarget && b.contains(e.relatedTarget))) hidePreview();
-});
-function closeEmotes() {
-  clearTimeout(S.emoteCloseT);
-  $('emotebar').classList.remove('open');
-  $('emoteToggle').setAttribute('aria-expanded', 'false');
-}
-// On phones the emote grid closes by itself when you tap anywhere else.
-document.addEventListener('pointerdown', e => {
-  if ($('emotebar').classList.contains('open') && !e.target.closest('#emotebar')) closeEmotes();
-}, true);
-function sendEmote(id) {
-  // ...and a few seconds after your last emote, so it never sits over the game.
-  clearTimeout(S.emoteCloseT);
-  S.emoteCloseT = setTimeout(closeEmotes, 3000);
-  const t = Date.now();
-  if (t - S.emoteAt < 650) return;
-  S.emoteAt = t;
-  const btns = $('emoteIn').querySelectorAll('button');
-  btns.forEach(b => b.classList.add('cool'));
-  setTimeout(() => btns.forEach(b => b.classList.remove('cool')), 650);
-  emit('emote', { id });
-}
-/* Float the emote up from above the player's avatar, wherever it is on screen right now. */
-function showEmote(pid, id) {
-  const e = S.catalog.emotes.find(x => x.id === id);
-  if (!e) return;
-  const els = [...document.querySelectorAll(`[data-avatar="${CSS.escape(pid)}"]`)].filter(el => el.offsetParent);
-  const layer = $('emotelayer');
-  let x, y;
-  if (els.length) {
-    const r = els[0].getBoundingClientRect();
-    // sit just above the avatar, bottom edge on its top
-    const h = window.innerWidth < 620 ? 140 : 190;
-    x = r.left + r.width / 2; y = r.top - h + 10;
-  } else {
-    x = window.innerWidth / 2; y = window.innerHeight / 2;
-  }
-  // Several emotes from the same player in a row fan out a little.
-  x += (Math.random() - 0.5) * 18;
-  const el = document.createElement('div');
-  el.className = 'floatemote';
-  el.innerHTML = emoteFace(e);
-  el.style.left = x + 'px';
-  el.style.top = Math.max(4, y) + 'px';
-  layer.appendChild(el);
-  setTimeout(() => el.remove(), 4400);
-}
+/* ---------- emotes (shared.js draws the bar and the floating emotes) ---------- */
+Shared.emotes.init(id => emit('emote', { id }));
 
 /* ---------- rendering ---------- */
 let toastTimer = null;
@@ -243,7 +160,9 @@ function keepFocus(container, fn) {
 
 function render() {
   renderNotice();
-  renderEmoteBar();
+  Shared.emotes.show(!!S.st);
+  Shared.keepAwake(!!(S.st && S.st.game)); // keep the phone screen on during a game
+  noticeMyMove();
   const st = S.st;
   const main = $('main');
   $('roomchip').innerHTML = st ? `Room <b>${esc(st.code)}</b>` : '';
@@ -345,6 +264,20 @@ function renderHome(main) {
   if (btn) btn.disabled = S.joining || !S.connected;
 }
 
+/* "Your turn" while you're in another tab or app: a chime and a flashing tab title. */
+function noticeMyMove() {
+  const st = S.st;
+  let msg = '';
+  if (st && st.game) {
+    const g = games[st.game.id];
+    msg = (g && g.myMove && g.myMove(st)) || '';
+    if (!S.hadGame) msg = msg || 'Game starting';
+  }
+  S.hadGame = !!(st && st.game);
+  if (msg && msg !== S.lastMove) Shared.attention(msg);
+  S.lastMove = msg;
+}
+
 /* room */
 function renderRoom(main, st) {
   S.built = 'room:' + st.code;
@@ -404,13 +337,6 @@ document.addEventListener('click', async e => {
       const link = location.origin + '/' + st.code;
       try { await navigator.clipboard.writeText(link); toast('Invite link copied.'); }
       catch (err) { const r = document.createRange(); r.selectNodeContents($('inviteLink')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Link selected. Copy it to send to friends.'); }
-      break;
-    }
-    case 'emote': sendEmote(k); break;
-    case 'emote-toggle': {
-      const open = !$('emotebar').classList.contains('open');
-      $('emotebar').classList.toggle('open', open);
-      b.setAttribute('aria-expanded', String(open));
       break;
     }
     case 'select': st.selected = k; render(); emit('select', { game: k }); break;
@@ -480,7 +406,8 @@ return {
   registerGame(id, g) { games[id] = g; },
   boot() {
     render();
-    fetch('/catalog.json').then(r => r.json()).then(c => { S.catalog = c; $('emoteIn').innerHTML = ''; S.built = ''; render(); }).catch(() => {});
+    $('soundSlot').innerHTML = Shared.soundButtonHTML();
+    fetch('/catalog.json').then(r => r.json()).then(c => { S.catalog = c; Shared.emotes.set(c.emotes); S.built = ''; render(); }).catch(() => {});
   }
 };
 })();

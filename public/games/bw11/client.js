@@ -310,6 +310,7 @@ function boom(level) {
 }
 /* Play the recorded announcer line if there is one, otherwise the built-in boom. */
 function playKill(lvl, name) {
+  if (!Shared.soundOn()) return;
   const src = ((H.catalog.bw11 || {}).sounds || {})[name];
   if (!src) return boom(lvl);
   try { const a = new Audio(src); a.play().catch(() => boom(lvl)); } catch (e) { boom(lvl); }
@@ -339,6 +340,13 @@ function fx(e, g) {
 }
 
 Hub.registerGame('bw11', {
+  myMove(st) {
+    const g = st.game, t = g.turn;
+    if (g.phase === 'setup' && g.order.includes(st.you) && !(g.setupDone || []).includes(st.you)) return 'Pick your tiles';
+    if (g.phase !== 'play' || !t) return '';
+    if (t.step === 'answer' && t.guess && t.guess.target === st.you) return 'Answer the guess';
+    return t.pid === st.you && t.step !== 'answer' ? 'Your turn' : '';
+  },
   title: 'Black, White & Eleven',
   settings,
   render,
