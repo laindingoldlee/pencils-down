@@ -133,6 +133,8 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .ico::before,.ico::after{content:"";position:absolute;inset:0}
 .ico::before{background:var(--c);-webkit-mask:var(--src) center/contain no-repeat;mask:var(--src) center/contain no-repeat}
 .ico::after{background:var(--src) center/contain no-repeat;mix-blend-mode:screen}
+/* near-white items: gray shading turns into darker grays, so the details still show */
+.ico.lightc::after{filter:invert(1);mix-blend-mode:multiply}
 
 /* emotes */
 .emotebar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line)}

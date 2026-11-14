@@ -14,9 +14,16 @@ function theme(id) {
   return ts.find(t => t.id === id) || ts[0] || { items: [] };
 }
 /* One item drawn in a given color. */
+/* Very light colors (white) can't be shaded lighter, so their gray shading is drawn darker instead. */
+function isLight(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex));
+  if (!m) return false;
+  const [r, g, b] = m.slice(1).map(x => parseInt(x, 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.8;
+}
 function ico(item, color, style) {
   if (!item) return '';
-  return `<span class="ico" style="--c:${esc(color)};--src:url('${esc(item.src)}');${style || ''}"></span>`;
+  return `<span class="ico${isLight(color) ? ' lightc' : ''}" style="--c:${esc(color)};--src:url('${esc(item.src)}');${style || ''}"></span>`;
 }
 const perCard = deck => Math.min(6, 200 / Math.max(1, deck)); // pile height in px for each card
 const pileH = (n, deck) => Math.min(150, Math.max(n > 0 ? 5 : 0, n * perCard(deck)));
