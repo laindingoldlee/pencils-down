@@ -59,7 +59,10 @@ function arm(act, id) { S.arm = { act, id: id || '', at: Date.now() }; render();
 /* A player's round avatar. data-avatar marks where their emotes float up from. */
 const HUES = [262, 8, 175, 38, 318, 125, 210, 345, 62, 290, 150, 22];
 function hueOf(pid) {
-  // Colors go round in the order people joined, so neighbours never look alike.
+  // A colour the player picked comes first.
+  const pl = S.st && S.st.players.find(p => p.pid === pid);
+  if (pl && Number.isInteger(pl.color)) return HUES[pl.color % HUES.length];
+  // Otherwise colors go round in the order people joined, so neighbours never look alike.
   const i = S.st ? S.st.players.findIndex(p => p.pid === pid) : -1;
   if (i >= 0) return HUES[i % HUES.length];
   let h = 0; for (const ch of String(pid)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -112,7 +115,7 @@ function joined(code) {
 }
 async function join(code, name, quiet) {
   S.joining = true;
-  let res = await emit('join', { code, name, pid: PID, secret: SECRET });
+  let res = await emit('join', { code, name, pid: PID, secret: SECRET, color: myColor() });
   // The server restarted and forgot the room: bring it back with the same code.
   if (!res.ok && res.gone && S.st && S.st.code === code) {
     const st = S.st;
@@ -130,7 +133,7 @@ async function join(code, name, quiet) {
 }
 async function create(name) {
   S.joining = true; render();
-  const res = await emit('create', { name, pid: PID, secret: SECRET });
+  const res = await emit('create', { name, pid: PID, secret: SECRET, color: myColor() });
   S.joining = false;
   if (res.ok) joined(res.code);
   else S.homeError = res.error || 'Couldn’t start a room.';
@@ -278,6 +281,46 @@ function noticeMyMove() {
   S.lastMove = msg;
 }
 
+/* ---------- changing your name or avatar colour ---------- */
+// The colour you picked, remembered by this browser for the next room.
+const myColor = () => { const v = store.get('gn.color'); const c = Number(v); return v !== null && Number.isInteger(c) && c >= 0 && c < HUES.length ? c : undefined; };
+function openProfile() {
+  const st = S.st, me = player(st && st.you);
+  if (!me) return;
+  const old = $('profileDlg'); if (old) old.remove();
+  const cur = Number.isInteger(me.color) ? me.color : HUES.indexOf(hueOf(me.pid));
+  const d = document.createElement('div');
+  d.id = 'profileDlg';
+  d.className = 'dlg';
+  d.innerHTML = `<form class="dlgcard" id="profileForm">
+    <h2>You</h2>
+    <label class="field"><span class="label">Name</span><input id="pfName" maxlength="20" value="${esc(me.name)}" autocomplete="nickname"></label>
+    <div class="field"><span class="label">Avatar colour</span><div class="swatches">${HUES.map((h, i) =>
+      `<button type="button" class="sw" data-sw="${i}" style="--hue:${h}" aria-label="Colour ${i + 1}" aria-pressed="${i === cur}"></button>`).join('')}</div></div>
+    <div class="dlgrow"><button type="submit" class="btn primary">Save</button><button type="button" class="btn" data-close>Cancel</button></div>
+  </form>`;
+  document.body.appendChild(d);
+  let pick = cur;
+  d.addEventListener('click', e => {
+    const sw = e.target.closest('[data-sw]');
+    if (sw) { pick = Number(sw.dataset.sw); d.querySelectorAll('.sw').forEach(x => x.setAttribute('aria-pressed', String(x === sw))); }
+    if (e.target === d || e.target.closest('[data-close]')) d.remove();
+  });
+  d.addEventListener('keydown', e => { if (e.key === 'Escape') d.remove(); });
+  d.querySelector('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const name = String($('pfName').value || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    if (!name) { $('pfName').focus(); return; }
+    const r = await emit('profile', { name, color: pick });
+    if (!r.ok) { toast(r.error || 'Couldn’t save that.'); return; }
+    S.name = name; store.set('pd.name', name); store.set('gn.color', String(pick));
+    d.remove();
+  });
+  $('pfName').focus();
+  $('pfName').select();
+}
+
 /* room */
 function renderRoom(main, st) {
   S.built = 'room:' + st.code;
@@ -288,7 +331,8 @@ function renderRoom(main, st) {
       ? `<button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
     const promote = host && p.pid !== st.you && p.connected
       ? `<button type="button" class="linkbtn${armed('make-host', p.pid) ? ' armed' : ''}" data-act="make-host" data-k="${esc(p.pid)}">${armed('make-host', p.pid) ? 'make host?' : 'make host'}</button>` : '';
-    return `<li>${avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${p.pid === st.you ? 'you' : (p.connected ? '' : 'away')}${promote}${kick}</span></li>`;
+    const mine = p.pid === st.you;
+    return `<li>${mine ? `<button type="button" class="avbtn" data-act="edit-me" title="Change your name or colour">${avatar(p.pid)}<span class="pen" aria-hidden="true">✎</span></button>` : avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${mine ? '<button type="button" class="linkbtn" data-act="edit-me">you · edit</button>' : (p.connected ? '' : 'away')}${promote}${kick}</span></li>`;
   }).join('');
   const cards = GAME_LIST.map(g => `<button type="button" class="gcard" data-act="select" data-k="${g.id}" aria-pressed="${st.selected === g.id}" ${g.ready && host ? '' : 'disabled'}>
       <span class="tag">${g.ready ? esc(g.players) : 'Coming soon'}</span><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p></button>`).join('');
@@ -351,6 +395,7 @@ document.addEventListener('click', async e => {
       if (!r.ok) { b.disabled = false; if (r.error) toast(r.error); }
       break;
     }
+    case 'edit-me': openProfile(); break;
     case 'make-host': if (armed('make-host', k)) { S.arm = null; emit('makeHost', { pid: k }); } else arm('make-host', k); break;
     case 'kick': if (armed('kick', k)) { S.arm = null; emit('kick', { pid: k }); } else arm('kick', k); break;
     case 'toRoom': if (armed('toRoom')) { S.arm = null; emit('toRoom'); } else arm('toRoom'); break;
