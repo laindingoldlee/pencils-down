@@ -292,15 +292,27 @@ function actHTML(g, st, pickPlayers) {
   return `<div class="t7-act"><h3>…</h3></div>`;
 }
 
+const cardValue = r => (r === '7' ? 0 : r === 'A' ? 1 : ['J', 'Q', 'K', 'X'].includes(r) ? 10 : Number(r));
 function summaryHTML(g, st) {
   const s = g.summary;
   const ranked = g.order.slice().sort((a, b) => g.totals[a] - g.totals[b]);
+  // Each player's cards are turned over one at a time, with their values adding up to the score.
+  // This plays once per round; later redraws show it finished.
+  const animate = L.breakdownRound !== g.round;
+  L.breakdownRound = g.round;
+  let step = 0;
+  const STEP = 0.22;
   let place = 0, prev = null;
   const rows = ranked.map((pid, i) => {
     if (g.totals[pid] !== prev) { place = i + 1; prev = g.totals[pid]; }
-    const pen = s && s.penalty && s.caller === pid ? ` <span class="pen">+${s.penalty} penalty</span>` : '';
-    const round = s ? `${s.scores[pid]} this round${pen}` : '';
-    return `<li><span class="pl">${place}</span>${H.avatar(pid, 30)}<span>${esc(nm(pid, st))}<br><small class="muted">${round}</small></span><span class="pt">${g.totals[pid]}</span></li>`;
+    const pen = s && s.penalty && s.caller === pid ? `<span class="pen">+${s.penalty} penalty</span>` : '';
+    const cards = (g.rows[pid] || []).filter(c => c.face).map(c => {
+      const d = animate ? ` style="animation-delay:${(step++ * STEP).toFixed(2)}s"` : '';
+      return `<span class="bdcard${animate ? ' anim' : ''}"${d}>${cardHTML(c.face, { size: 'tiny' })}<b>${cardValue(c.face.r)}</b></span>`;
+    }).join('<span class="bdplus">+</span>');
+    const totalDelay = animate ? ` style="animation-delay:${(step * STEP).toFixed(2)}s"` : '';
+    const round = s ? `<span class="bdsum${animate ? ' anim' : ''}"${totalDelay}>= ${s.scores[pid]}${pen}</span>` : '';
+    return `<li><span class="pl">${place}</span>${H.avatar(pid, 30)}<span class="bdwho">${esc(nm(pid, st))}<span class="bdrow">${cards}${round}</span></span><span class="pt">${g.totals[pid]}</span></li>`;
   }).join('');
   const why = s ? (s.why === 'call' ? `${esc(nm(s.caller, st))} called last round.${s.penalty ? ' They weren’t the lowest!' : ' They were right.'}` : 'The pile ran out.') : '';
   if (g.phase === 'over') {
