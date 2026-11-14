@@ -108,7 +108,7 @@ function render(main, st) {
     <section class="fe" aria-label="The Fifth Element">
       <div class="fe-top">
         <div class="fe-title">The Fifth Element</div>
-        <div class="fe-left"><span class="deckpile" id="feDeck"></span><span id="feLeft"></span></div>
+        <div class="fe-left"><span id="feLeft"></span></div>
         ${H.dd('fe-how', 'How to play', `<ul>
           <li>An item on the card in its <b>own color</b>? Click that item.</li>
           <li>Both items in the <b>wrong color</b>? Cross out the two items and the two colors on the card. Click the item that’s left.</li>
@@ -118,7 +118,11 @@ function render(main, st) {
       </div>
       <div class="fe-seats" id="feSeats"></div>
       <div class="fe-stage">
-        <div class="fe-cardwrap" id="feCardWrap"></div>
+        <div class="fe-deckrow">
+          <div class="fe-deck" id="feDeck" role="img" aria-label="Cards left in the deck"><span class="top"></span><span class="edge"></span></div>
+          <div class="fe-cardwrap" id="feCardWrap"></div>
+          <span aria-hidden="true"></span>
+        </div>
         <div class="fe-msg" id="feMsg" aria-live="polite"></div>
       </div>
       <div class="fe-items" id="feItems">${t.items.map((it, i) =>
@@ -132,9 +136,15 @@ function update(st, g) {
   const t = theme(g.theme);
   const host = H.isHost();
   // cards left in the deck
-  H.setText('feLeft', g.sudden ? 'Sudden death' : (g.left > 0 ? 'Deck' : 'Last card'));
+  H.setText('feLeft', g.sudden ? 'Sudden death' : (g.left > 0 ? '' : 'Last card'));
+  // The deck beside the card: its thickness shows roughly how many cards are left (no number).
   const deckEl = document.getElementById('feDeck');
-  if (deckEl) deckEl.style.setProperty('--dh', Math.max(2, Math.round(26 * g.left / Math.max(1, g.deckSize))) + 'px');
+  if (deckEl) {
+    const frac = g.sudden ? 0 : g.left / Math.max(1, g.deckSize);
+    deckEl.style.setProperty('--frac', frac.toFixed(3));
+    deckEl.classList.toggle('empty', !g.sudden && g.left === 0);
+    deckEl.classList.toggle('gone', !!g.sudden);
+  }
   const ctl = document.getElementById('feHostCtl');
   if (ctl) ctl.innerHTML = host ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : '';
   updateSeats(st, g);
