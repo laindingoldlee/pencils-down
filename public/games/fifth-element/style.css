@@ -113,6 +113,17 @@
 @keyframes flick{from{transform:scale(.9)}to{transform:scale(1.15)}}
 @keyframes ember{0%{transform:translateY(0);opacity:0}15%{opacity:1}100%{transform:translateY(-40px);opacity:0}}
 
+/* reaction-time leaderboard on the final screen */
+.fe-react{display:grid;gap:6px}
+.fe-react table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+.fe-react th,.fe-react td{padding:6px 8px;text-align:right;border-bottom:1px solid rgba(179,170,228,.18);white-space:nowrap}
+.fe-react th{font-size:.78rem;color:var(--felt-soft);font-weight:700}
+.fe-react th:nth-child(2),.fe-react td:nth-child(2){text-align:left;width:100%;white-space:normal}
+.fe-react td.pl{text-align:center;color:var(--felt-soft);font-family:var(--font-display)}
+.fe-react td.t{font-family:var(--font-display);color:var(--gold)}
+.fe-react tr.me td{background:rgba(233,195,91,.08)}
+.fe-react small{color:var(--felt-soft)}
+
 /* final scores */
 .fe-final{gap:12px}
 .fe-winner{font-family:var(--font-display);font-size:clamp(1.6rem,5vw,2.5rem);line-height:1.05;color:var(--gold);overflow-wrap:anywhere}

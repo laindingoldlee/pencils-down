@@ -333,6 +333,17 @@ function fx(e, g) {
 }
 
 /* ---------- final scores ---------- */
+/* Reaction-time leaderboard: every correct click counts, including ones just behind the winner. */
+function reactionBoard(g, st) {
+  const r = (g.reactions || []).filter(x => H.player(x.pid));
+  if (!r.length) return '';
+  const s = ms => (ms / 1000).toFixed(2) + 's';
+  return `<div class="fe-react"><div class="eyebrow muted">Reaction times</div>
+    <table><thead><tr><th></th><th>Player</th><th>Fastest</th><th>Average</th><th>Correct</th></tr></thead><tbody>
+    ${r.map((x, i) => `<tr${x.pid === st.you ? ' class="me"' : ''}><td class="pl">${i === 0 ? '⚡' : i + 1}</td><td>${esc(H.nameOf(x.pid))}${x.pid === st.you ? ' <small>(you)</small>' : ''}</td><td class="t">${s(x.best)}</td><td>${s(x.avg)}</td><td>${x.n}</td></tr>`).join('')}
+    </tbody></table></div>`;
+}
+
 function renderFinal(main, st, g) {
   H.S.built = 'fe-final:' + st.code;
   L.cardKey = '';
@@ -354,6 +365,7 @@ function renderFinal(main, st, g) {
       <div class="fe-top"><div class="fe-title">The Fifth Element</div></div>
       <div><div class="eyebrow muted">Final piles · ${g.deckSize} cards · ${g.burned} burned</div><div class="fe-winner">${headline}</div></div>
       <ol class="fe-rank">${rows}</ol>
+      ${reactionBoard(g, st)}
       <div class="fe-actions">${H.isHost()
         ? '<button type="button" class="btn primary big" data-act="again">Play again</button><button type="button" class="btn" data-act="toRoomNow">Back to the room</button>'
         : `<span class="muted">Waiting for ${esc(H.nameOf(st.hostPid))} to pick what’s next.</span>`}</div>

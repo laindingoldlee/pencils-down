@@ -121,7 +121,8 @@ function start(ctx, settings) {
     deck: shuffle(allCards()).slice(0, settings.deck), dealt: 0,
     phase: 'ready', revealAt: 0, shownAt: 0, seq: 0,
     card: null, pot: 0, locked: new Set(), result: null,
-    piles: {}, burned: 0, sudden: null, winner: null, timer: null
+    piles: {}, burned: 0, sudden: null, winner: null, timer: null,
+    times: {}            // every correct reaction per player, in ms, for the leaderboard
   };
   for (const pid of ctx.playerIds()) g.piles[pid] = 0;
   queueNext(g, FIRST_READY_MS);
@@ -166,7 +167,9 @@ function pick(g, pid, payload) {
     if (g.lateSeen && g.lateSeen.seq === g.seq && g.lateSeen.pids.has(pid)) return { ok: false, late: true };
     if (!g.lateSeen || g.lateSeen.seq !== g.seq) g.lateSeen = { seq: g.seq, pids: new Set() };
     g.lateSeen.pids.add(pid);
-    return { ok: false, late: true, correct: Number(payload.item) === g.result.answer, ms: Date.now() - g.shownAt, winnerMs: g.result.ms };
+    const correct = Number(payload.item) === g.result.answer, ms = Date.now() - g.shownAt;
+    if (correct) (g.times[pid] = g.times[pid] || []).push(ms);
+    return { ok: false, late: true, correct, ms, winnerMs: g.result.ms };
   }
   if (g.phase !== 'card' || payload.seq !== g.seq) return { ok: false, late: true };
   if (!canPlay(g, pid)) return { ok: false, error: 'Only the tied players play the sudden-death card.' };
@@ -182,6 +185,7 @@ function pick(g, pid, payload) {
     g.pot = 0;
     g.phase = 'result';
     g.result = { winner: pid, answer: item, cards: won, ms: Date.now() - g.shownAt };
+    (g.times[pid] = g.times[pid] || []).push(g.result.ms);
     g.ctx.fx({ type: 'win', pid, n: won });
     g.timer = g.sudden
       ? setTimeout(safe(() => finish(g, pid)), RESULT_MS)
@@ -258,6 +262,13 @@ function playerJoined(g, pid) {
   if (!(pid in g.piles) && g.phase !== 'final') g.piles[pid] = 0;
 }
 
+/* Fastest and average correct reaction per player, fastest first. */
+function reactionStats(g) {
+  return Object.entries(g.times).filter(([, t]) => t.length).map(([pid, t]) => ({
+    pid, best: Math.min(...t), avg: Math.round(t.reduce((a, b) => a + b, 0) / t.length), n: t.length
+  })).sort((a, b) => a.best - b.best);
+}
+
 /* What each player's page gets. The answer stays on the server until the card is over,
    and the card itself until the moment it is revealed. */
 function view(g) {
@@ -279,7 +290,8 @@ function view(g) {
     result: g.phase === 'result' ? g.result : null,
     sudden: g.sudden,
     winner: g.phase === 'final' ? g.winner : null,
-    burned: g.burned
+    burned: g.burned,
+    reactions: g.phase === 'final' ? reactionStats(g) : null
   };
 }
 
@@ -288,5 +300,6 @@ module.exports = {
   THEMES, DECK_SIZES, defaults, cleanSettings,
   start, stop, pick, view, playersChanged, playerJoined,
   result: g => (g.phase === 'final' ? (g.winner ? [g.winner] : []) : null),
+  reactionStats,
   allCards // for tests
 };

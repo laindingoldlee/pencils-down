@@ -137,6 +137,7 @@ function makeRoom(code) {
     game: null,          // a game being played inside the room
     pencils: false,      // a Pencils Down game was opened from this room
     wins: [],            // tonight's results, for the room scoreboard
+    reactions: {},       // fastest Fifth Element reaction per player tonight
     hostTimer: null, lastActive: Date.now()
   };
   rooms.set(code, room);
@@ -153,6 +154,7 @@ function publicState(room, forPid) {
     settings: room.settings,
     pencils: room.pencils,
     wins: room.wins,
+    reactions: Object.values(room.reactions).sort((a, b) => a.best - b.best),
     game: room.game ? GAMES[room.game.id].view(room.game, forPid) : null,
     serverNow: Date.now()
   };
@@ -169,7 +171,16 @@ function broadcast(room) {
   const g = room.game;
   if (g && !g.recorded && GAMES[g.id].result) {
     const w = GAMES[g.id].result(g);
-    if (w) { g.recorded = true; recordWin(room, g.id, w); }
+    if (w) {
+      g.recorded = true;
+      recordWin(room, g.id, w);
+      // Fifth Element: keep each player's fastest reaction of the night.
+      if (g.id === 'fifth') for (const r of fifth.reactionStats(g)) {
+        const cur = room.reactions[r.pid];
+        const name = (room.players.get(r.pid) || {}).name || 'Someone';
+        if (!cur || r.best < cur.best) room.reactions[r.pid] = { pid: r.pid, name, best: r.best };
+      }
+    }
   }
   for (const p of room.players.values()) {
     if (!p.sockets.size) continue;

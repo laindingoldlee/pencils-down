@@ -282,6 +282,16 @@ function noticeMyMove() {
   S.lastMove = msg;
 }
 
+/* ---------- fastest Fifth Element reactions tonight ---------- */
+function reactionBoard(st) {
+  const r = st.reactions || [];
+  if (!r.length) return '';
+  return `<section class="panel">
+    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">The Fifth Element · each player’s best correct click</span></header>
+    <ol class="tally">${r.map((x, i) => `<li><span class="place">${i + 1}</span>${player(x.pid) ? avatar(x.pid, 30) : '<span></span>'}<span class="nm">${esc((player(x.pid) || {}).name || x.name)}</span><span class="wins">${(x.best / 1000).toFixed(2)}s</span></li>`).join('')}</ol>
+  </section>`;
+}
+
 /* ---------- tonight's results: wins per player, and the latest games ---------- */
 function scoreboard(st) {
   const wins = st.wins || [];
@@ -397,6 +407,7 @@ function renderRoom(main, st) {
       </div>
     </section>
     ${scoreboard(st)}
+    ${reactionBoard(st)}
     <section class="panel">
       <header class="panel-head"><h2>In the room</h2><span class="muted">Tap an emote below to react</span></header>
       <ul class="crowd">${crowd}</ul>
