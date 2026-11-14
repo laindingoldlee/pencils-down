@@ -14,9 +14,16 @@ function theme(id) {
   return ts.find(t => t.id === id) || ts[0] || { items: [] };
 }
 /* One item drawn in a given color. */
+/* Very light colors (white) can't be shaded lighter, so their gray shading is drawn darker instead. */
+function isLight(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(String(hex));
+  if (!m) return false;
+  const [r, g, b] = m.slice(1).map(x => parseInt(x, 16) / 255);
+  return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.8;
+}
 function ico(item, color, style) {
   if (!item) return '';
-  return `<span class="ico" style="--c:${esc(color)};--src:url('${esc(item.src)}');${style || ''}"></span>`;
+  return `<span class="ico${isLight(color) ? ' lightc' : ''}" style="--c:${esc(color)};--src:url('${esc(item.src)}');${style || ''}"></span>`;
 }
 const perCard = deck => Math.min(6, 200 / Math.max(1, deck)); // pile height in px for each card
 const pileH = (n, deck) => Math.min(150, Math.max(n > 0 ? 5 : 0, n * perCard(deck)));
@@ -102,6 +109,11 @@ function render(main, st) {
       <div class="fe-top">
         <div class="fe-title">The Fifth Element</div>
         <div class="fe-left"><span class="deckpile" id="feDeck"></span><span id="feLeft"></span></div>
+        ${H.dd('fe-how', 'How to play', `<ul>
+          <li>An item on the card in its <b>own color</b>? Click that item.</li>
+          <li>Both items in the <b>wrong color</b>? Cross out the two items and the two colors on the card. Click the item that’s left.</li>
+          <li>A wrong click burns one of your cards and locks you out until the next card. On a computer, keys 1–5 work too.</li>
+        </ul>`, 'fe-how')}
         <span id="feHostCtl"></span>
       </div>
       <div class="fe-seats" id="feSeats"></div>
@@ -111,13 +123,6 @@ function render(main, st) {
       </div>
       <div class="fe-items" id="feItems">${t.items.map((it, i) =>
         `<button type="button" class="fe-item" data-act="fe-pick" data-k="${i}" aria-label="${esc(it.name)}"><kbd>${i + 1}</kbd>${ico(it, it.color)}<span class="iname">${esc(it.name)}</span></button>`).join('')}</div>
-      <details class="fe-how"><summary>How to play</summary>
-        <ul>
-          <li>An item on the card in its <b>own color</b>? Click that item.</li>
-          <li>Both items in the <b>wrong color</b>? Cross out the two items and the two colors on the card. Click the item that’s left.</li>
-          <li>A wrong click burns one of your cards and locks you out until the next card. On a computer, keys 1–5 work too.</li>
-        </ul>
-      </details>
     </section>`;
   }
   update(st, g);

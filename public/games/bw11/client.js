@@ -139,6 +139,8 @@ function render(main, st) {
     main.innerHTML = `<section class="bw" aria-label="Black, White and Eleven">
       <div class="bw-top"><div class="bw-title">Black, White &amp; Eleven</div>
         <span class="bw-legend" title="Order for the same number">${legend}</span>
+        ${H.dd('bw-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 'bw-log')}
+        ${H.dd('bw-rules', 'How to play', rulesList(g.wilds), 'bw-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
       <div class="bw-table">
         <div class="pot" title="Liar’s Pot"><span class="chips">${chips}</span><span><b>${g.pot}</b><small>Liar’s<br>Pot</small></span></div>
@@ -147,12 +149,8 @@ function render(main, st) {
       ${g.phase === 'over' ? overHTML(g, st) : actionHTML(g, st)}
       <div class="bw-seats">${others.map(pid => seat(pid, false)).join('')}</div>
       ${playing ? `<div class="bw-seats">${seat(me, true)}</div>` : '<p class="muted" style="margin:0">You joined after this game started, so you’re watching this one.</p>'}
-      <details class="bw-log" ${L.logOpen ? 'open' : ''}><summary>What happened</summary><ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol></details>
-      <details class="bw-rules"><summary>How to play</summary>${rulesList(g.wilds)}</details>
     </section>`;
   });
-  const lg = main.querySelector('.bw-log');
-  if (lg) lg.addEventListener('toggle', () => { L.logOpen = lg.open; });
 }
 
 function who(pid, st) { return pid === st.you ? 'You' : esc(H.nameOf(pid)); }

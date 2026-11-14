@@ -1,0 +1,35 @@
+{
+  "name": "Underwater",
+  "items": [
+    {
+      "name": "Fish",
+      "file": "fish.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    },
+    {
+      "name": "Seahorse",
+      "file": "seahorse.svg",
+      "color": "#2EAF4E",
+      "colorName": "green"
+    },
+    {
+      "name": "Coral",
+      "file": "coral.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Crab",
+      "file": "crab.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    },
+    {
+      "name": "Jellyfish",
+      "file": "jellyfish.svg",
+      "color": "#9B5DE5",
+      "colorName": "purple"
+    }
+  ]
+}

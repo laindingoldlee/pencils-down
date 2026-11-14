@@ -145,3 +145,67 @@
   .sp{padding-inline:10px;border-radius:14px}
 }
 @media (prefers-reduced-motion: reduce){.sp-banner,.spseat.hit{animation-duration:.01s}}
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.sp.fitted{gap:10px}
+.sp.fitted .sp-round{min-height:0;aspect-ratio:auto;--cw:clamp(26px,calc(var(--fit-h) * .06),48px)}
+.sp.fitted .sp-round.some{--cw:clamp(24px,calc(var(--fit-h) * .053),42px)}
+.sp.fitted .sp-round.many{--cw:clamp(22px,calc(var(--fit-h) * .046),38px)}
+.sp.fitted .spspot.mine{--cw:clamp(32px,calc(var(--fit-h) * .07),54px)}
+.sp.fitted .sp-center{--cw:clamp(28px,calc(var(--fit-h) * .055),44px)}
+.sp.fitted .sp-cast{--cw:clamp(22px,calc(var(--fit-h) * .042),32px)}
+.sp.fitted .sp-act{flex:none;padding:10px 14px;gap:8px}
+.sp.fitted .spells{max-width:min(760px,calc(var(--fit-h) * 1.15))}
+
+/* every stone cast this round, one row per spell */
+.sp-cast .played{display:grid;gap:1px;--pw:14px}
+
+.spspot.mine .spseat{max-width:min(440px,70vw)}
+/* the table with the cast stones in a panel at its side */
+.sp-main{display:flex;gap:12px;align-items:stretch;min-height:0}
+.sp-main .sp-round{flex:1 1 auto;min-width:0}
+.sp-side{flex:none;width:clamp(150px,17%,220px);align-self:center;background:rgba(0,0,0,.28);border:1px solid rgba(240,199,94,.25);border-radius:14px;padding:10px 12px}
+.sp-side .sp-cast{justify-items:start}
+.sp-side .played{--pw:clamp(14px,1.6vw,22px);gap:3px}
+.sp.fitted .sp-main{flex:1 1 0}
+.sp.fitted .sp-main .sp-round{flex:1 1 auto;aspect-ratio:auto;height:auto}
+.sp.fitted .sp-side .played{--pw:clamp(12px,calc(var(--fit-h) * .026),22px)}
+.sp-center:not(.out) .sp-cast{gap:2px}
+.sp-cast .prow{display:flex;align-items:center;gap:6px;min-height:calc(var(--pw) * 1.34)}
+.sp-cast .pn{width:1.1em;text-align:right;font-family:var(--font-display);font-size:.78rem;color:var(--soft)}
+.sp-cast .pstones{display:flex}
+.sp-cast .pstones img{width:var(--pw);aspect-ratio:240/322;object-fit:cover;border-radius:3px;box-shadow:0 1px 3px rgba(0,0,0,.6);margin-left:calc(var(--pw) * -.45)}
+.sp-cast .pstones img:first-child{margin-left:0}
+@media (max-width:620px){.sp-center.out .played{grid-template-columns:repeat(3,auto);column-gap:14px}}
+
+/* the 1-2-3 penalty wheel */
+.sp-spin{position:fixed;inset:0;z-index:45;display:grid;place-items:center;background:rgba(10,3,10,.45);pointer-events:none;animation:spfade .25s ease-out}
+.sp-spin-card{display:grid;justify-items:center;gap:10px;background:#1E0A1C;border:2px solid #F0C75E;border-radius:18px;padding:16px 26px 18px;box-shadow:0 20px 50px rgba(0,0,0,.6);color:#FBEFF6}
+.sp-spin-title{font-weight:900;font-size:1.25rem;color:#FF8A80}
+.sp-wheel-wrap{position:relative;width:min(220px,56vw);aspect-ratio:1}
+.sp-pointer{position:absolute;top:-14px;left:50%;transform:translateX(-50%);z-index:1;color:#F0C75E;font-size:1.6rem;text-shadow:0 2px 4px rgba(0,0,0,.6)}
+.sp-wheel{width:100%;height:100%;animation:spwheel var(--ms) cubic-bezier(.15,.75,.2,1) forwards}
+.sp-spin-result{font-size:1.15rem;font-weight:700;opacity:0;animation:spfade .3s ease-out forwards;animation-delay:var(--ms,2s)}
+.sp-spin-card:has(.sp-wheel) .sp-spin-result{animation-delay:2.05s}
+.sp-spin-result b{color:#FF8A80;font-size:1.5rem}
+@keyframes spwheel{from{transform:rotate(0)}to{transform:rotate(var(--turn))}}
+@keyframes spfade{from{opacity:0}to{opacity:1}}
+@media (prefers-reduced-motion: reduce){.sp-wheel{animation-duration:.01s}.sp-spin-result{animation-delay:0s}}
+
+/* calling a spell: the bubble, and the stone flying to its row */
+.sp-call{position:fixed;z-index:46;pointer-events:none;display:flex;align-items:center;gap:10px;transform:translate(-50%,-50%) scale(.3);opacity:0;
+  background:#1E0A1C;color:#FBEFF6;border:2px solid #F0C75E;border-radius:999px;padding:8px 22px;box-shadow:0 12px 30px rgba(0,0,0,.55);white-space:nowrap;
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.sp-call .who{font-weight:700;color:#D3B3C7}
+.sp-call .num{font-family:var(--font-display);font-size:2.1rem;line-height:1;color:#F0C75E}
+.sp-call .nm{font-weight:900;font-size:1.3rem}
+.sp-call.miss{border-color:#FF6A5E;box-shadow:0 0 24px rgba(255,90,78,.5)}
+.sp-call .verdict{font-weight:900;font-size:1.2rem;color:#FF8A80;margin-left:4px}
+.sp-flycard{position:fixed;z-index:46;pointer-events:none;transform-style:preserve-3d}
+.sp-flycard .face{position:absolute;inset:0;border-radius:10%;overflow:hidden;backface-visibility:hidden;-webkit-backface-visibility:hidden;box-shadow:0 14px 34px rgba(0,0,0,.6)}
+.sp-flycard .face img{width:100%;height:100%;object-fit:cover;display:block}
+.sp-flycard .back{transform:rotateY(180deg);background:radial-gradient(circle at 50% 40%,#6B2D5E,#2A0E22 75%);border:3px solid #C9A04A;display:grid;place-items:center;color:#F0C75E;font-family:var(--font-display);font-size:3rem}
+.sp-flycard .cap{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:10px;white-space:nowrap;font:900 1.3rem "Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif;color:#86E3B5;text-shadow:0 2px 6px rgba(0,0,0,.8);opacity:0;transition:opacity .2s}
+.sp-flycard.shown .cap{opacity:1}
+.sp-flycard.shown .front{box-shadow:0 0 0 3px #F0C75E,0 0 34px rgba(240,199,94,.8)}
+.sp-cast img.incoming{visibility:hidden}

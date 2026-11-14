@@ -1,0 +1,35 @@
+{
+  "name": "Camping",
+  "items": [
+    {
+      "name": "Tent",
+      "file": "tent.svg",
+      "color": "#2EAF4E",
+      "colorName": "green"
+    },
+    {
+      "name": "Campfire",
+      "file": "campfire.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    },
+    {
+      "name": "Backpack",
+      "file": "backpack.svg",
+      "color": "#2F7BEB",
+      "colorName": "blue"
+    },
+    {
+      "name": "Compass",
+      "file": "compass.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Hiking boot",
+      "file": "hiking-boot.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    }
+  ]
+}

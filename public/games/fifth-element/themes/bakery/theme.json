@@ -1,0 +1,35 @@
+{
+  "name": "Bakery",
+  "items": [
+    {
+      "name": "Cupcake",
+      "file": "cupcake.svg",
+      "color": "#9B5DE5",
+      "colorName": "purple"
+    },
+    {
+      "name": "Croissant",
+      "file": "croissant.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    },
+    {
+      "name": "Rolling pin",
+      "file": "rolling-pin.svg",
+      "color": "#2F7BEB",
+      "colorName": "blue"
+    },
+    {
+      "name": "Whisk",
+      "file": "whisk.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Loaf",
+      "file": "loaf.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    }
+  ]
+}

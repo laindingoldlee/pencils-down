@@ -1,0 +1,35 @@
+{
+  "name": "Garden insects",
+  "items": [
+    {
+      "name": "Butterfly",
+      "file": "butterfly.svg",
+      "color": "#9B5DE5",
+      "colorName": "purple"
+    },
+    {
+      "name": "Bee",
+      "file": "bee.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    },
+    {
+      "name": "Ladybug",
+      "file": "ladybug.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    },
+    {
+      "name": "Snail",
+      "file": "snail.svg",
+      "color": "#2EAF4E",
+      "colorName": "green"
+    },
+    {
+      "name": "Dragonfly",
+      "file": "dragonfly.svg",
+      "color": "#2F7BEB",
+      "colorName": "blue"
+    }
+  ]
+}

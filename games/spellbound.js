@@ -15,7 +15,7 @@ const crypto = require('crypto');
 const SPELLS = 9;
 const AWAY_SKIP_MS = 20000;   // a disconnected player's turn ends after this long
 const ROUND_END_MS = 9000;    // how long the round summary stays up
-const WHEEL = ['heal', 'hurt', 'left', 'right', 'all', 'peek', 'laugh', 'laugh'];
+const SPIN_MS = 2600;         // how long the 1-2-3 penalty wheel spins before the lives come off
 
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Spellbound error:', e); } };
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -23,7 +23,7 @@ const clampInt = (v, lo, hi, d) => { const n = Math.round(Number(v)); return Num
 
 /* ---------- settings ---------- */
 const defaults = () => ({
-  stones: 5, lives: 6, maxLives: 6, target: 10,
+  stones: 5, lives: 6, maxLives: 6, target: 8,
   killPts: 3, clearPts: 3, selfPts: 1,
   copies: [1, 2, 3, 4, 5, 6, 7, 8, 9],
   ascending: true,   // within a turn, each guess must be the same or a higher number than the last cast
@@ -125,7 +125,7 @@ function nextTurn(g) {
 
 function watchAway(g) {
   if (g.awayTimer) { clearTimeout(g.awayTimer); g.awayTimer = null; }
-  if (g.phase !== 'play' || !g.turn) return;
+  if (g.phase !== 'play' || !g.turn || g.turn.step === 'spin') return;
   const t = g.turn;
   if (g.ctx.onlineIds().includes(t.pid)) return;
   g.awayTimer = setTimeout(safe(() => {
@@ -193,7 +193,7 @@ function checkRoundEnd(g) {
 }
 
 /* ---------- casting ---------- */
-const NEEDS = { 2: 2, 4: 1, 5: 1, 6: 1, 7: 1 }; // spells that need targets, and how many
+const NEEDS = { 2: 2, 4: 1, 5: 1 }; // spells that need targets, and how many
 
 function pick(g, pid, p) {
   if (g.phase !== 'play' || !g.turn || g.turn.pid !== pid) return { ok: false, error: '還沒輪到你。' };
@@ -208,6 +208,16 @@ function pick(g, pid, p) {
     if (i < 0) {
       log(g, { k: 'miss', pid, n });
       g.ctx.fx({ type: 'miss', pid, n });
+      // Calling 1 without having it is risky: a wheel of 1, 2 and 3 decides how many lives you lose.
+      if (n === 1) {
+        const roll = 1 + crypto.randomInt(3);
+        t.step = 'spin'; t.spin = roll;
+        log(g, { k: 'spin1', pid, roll });
+        g.ctx.fx({ type: 'spin1', pid, roll, ms: SPIN_MS });
+        g.timer = setTimeout(safe(() => finishSpin(g)), SPIN_MS);
+        g.ctx.broadcast();
+        return { ok: true, hit: false };
+      }
       damage(g, pid, 1, pid);
       if (!checkRoundEnd(g)) endTurn(g);
       return { ok: true, hit: false };
@@ -219,7 +229,7 @@ function pick(g, pid, p) {
     t.last = n;
     g.status[pid].curse = null; // a correct cast lifts a curse
     log(g, { k: 'cast', pid, n });
-    g.ctx.fx({ type: 'cast', pid, n });
+    g.ctx.fx({ type: 'cast', pid, n, id: stone.id });
     if (NEEDS[n] && others(g, pid).length) {
       t.step = 'target'; t.spell = n;
       g.ctx.broadcast();
@@ -246,12 +256,26 @@ function pick(g, pid, p) {
   return { ok: false };
 }
 
+function finishSpin(g) {
+  const t = g.turn;
+  if (g.phase !== 'play' || !t || t.step !== 'spin') return;
+  g.timer = null;
+  damage(g, t.pid, t.spin, t.pid);
+  t.spin = 0;
+  if (!checkRoundEnd(g)) endTurn(g);
+}
+
+/* Neighbours as they sit on screen: everyone sits clockwise in turn order, so the
+   next player in turn order is on your left and the previous one on your right. */
+function neighbours(g, pid) {
+  const order = g.order, i = order.indexOf(pid);
+  return { left: order[(i + 1) % order.length], right: order[(i - 1 + order.length) % order.length] };
+}
+
 function resolve(g, pid, n, targets) {
   const t = g.turn;
   const S = g.status;
-  const order = g.order, i = order.indexOf(pid);
-  const left = order[(i - 1 + order.length) % order.length];
-  const right = order[(i + 1) % order.length];
+  const { left, right } = neighbours(g, pid);
   switch (n) {
     case 1: { // All In
       const roll = 1 + crypto.randomInt(6);
@@ -268,28 +292,17 @@ function resolve(g, pid, n, targets) {
     case 3: S[pid].phoenix = true; break;
     case 4: S[targets[0]].curse = pid; break;
     case 5: S[targets[0]].silenced = true; break;
-    case 6: S[pid].link = targets[0]; break;
-    case 7: S[targets[0]].fog = pid; break;
-    case 8: { // Wheel of Fate
-      const slice = crypto.randomInt(WHEEL.length);
-      const w = WHEEL[slice];
-      let peekId = null;
-      if (w === 'heal') heal(g, pid, 1);
-      else if (w === 'hurt') damage(g, pid, 1, pid);
-      else if (w === 'left') damage(g, left, 1, pid);
-      else if (w === 'right') damage(g, right, 1, pid);
-      else if (w === 'all') for (const x of order) heal(g, x, 1);
-      else if (w === 'peek') {
-        const unknown = g.racks[pid].filter(x => !g.known[pid].has(x.id));
-        if (unknown.length) { peekId = unknown[crypto.randomInt(unknown.length)].id; g.known[pid].add(peekId); }
-      }
-      log(g, { k: 'wheel', pid, w, left, right });
-      g.ctx.fx({ type: 'wheel', pid, slice, w });
+    case 6: { // both neighbours (in a 2-player game they're the same person: hit once)
+      const hit = [...new Set([left, right])].filter(x => x !== pid);
+      for (const o of hit) damage(g, o, 1, pid);
+      log(g, { k: 'sides', pid, targets: hit });
       break;
     }
+    case 7: damage(g, left, 1, pid); log(g, { k: 'sides', pid, targets: [left] }); break;
+    case 8: damage(g, right, 1, pid); log(g, { k: 'sides', pid, targets: [right] }); break;
     case 9: heal(g, pid, 1); break;
   }
-  if (n !== 1 && n !== 8 && targets.length) log(g, { k: 'target', pid, n, targets });
+  if (targets.length) log(g, { k: 'target', pid, n, targets });
   t.step = 'cast'; t.spell = 0;
   if (!g.racks[pid].length) g.cleared = pid;
   if (checkRoundEnd(g)) return;
@@ -319,7 +332,8 @@ function view(g, viewer) {
   return {
     id: 'spell', settings: g.s, phase: g.phase, round: g.round, order: g.order,
     scores: g.scores, lives: g.lives, racks, status, pileLeft: g.pile.length, discard: g.discard,
-    turn: g.turn ? { pid: g.turn.pid, step: g.turn.step, casts: g.turn.casts, spell: g.turn.spell, last: g.turn.last } : null,
+    turn: g.turn ? { pid: g.turn.pid, step: g.turn.step, casts: g.turn.casts, spell: g.turn.spell, last: g.turn.last, spin: g.turn.spin || 0 } : null,
+    neighbours: Object.fromEntries(g.order.map(p => [p, neighbours(g, p)])),
     summary: g.summary, nextRoundAt: g.nextRoundAt, winners: g.winners, log: g.log.slice(-30)
   };
 }
@@ -328,5 +342,5 @@ module.exports = {
   id: 'spell', name: 'Spellbound Mayhem', minPlayers: 2,
   defaults, cleanSettings, canStart,
   start, stop, pick, view, playersChanged, playerJoined,
-  _startRound: startRound // for tests
+  _startRound: startRound, _finishSpin: finishSpin // for tests
 };

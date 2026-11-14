@@ -1,0 +1,35 @@
+{
+  "name": "Weather",
+  "items": [
+    {
+      "name": "Cloud",
+      "file": "cloud.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Sun",
+      "file": "sun.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    },
+    {
+      "name": "Lightning",
+      "file": "lightning.svg",
+      "color": "#2F7BEB",
+      "colorName": "blue"
+    },
+    {
+      "name": "Tornado",
+      "file": "tornado.svg",
+      "color": "#9B5DE5",
+      "colorName": "purple"
+    },
+    {
+      "name": "Umbrella",
+      "file": "umbrella.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    }
+  ]
+}

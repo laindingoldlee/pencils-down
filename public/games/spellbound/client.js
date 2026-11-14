@@ -9,29 +9,24 @@ const H = Hub.api;
 const esc = H.esc;
 
 const SP = [null,
-  { name: '孤注一擲', icon: '🎲', color: '#C0392B', short: '擲骰：2–6 其他所有人各失去 2 生命；擲到 1 你自己失去 2 生命。' },
+  { name: '孤注一擲', icon: '🎲', color: '#C0392B', short: '擲骰：2–6 其他所有人各失去 2 生命；擲到 1 你自己失去 2 生命。', extra: '小心：猜 1 卻沒有 1 的話，要轉 1・2・3 的輪盤，轉到幾就失去幾條生命。' },
   { name: '雙重吸取', icon: '🩸', color: '#8E2A5A', short: '選兩位玩家各失去 1 生命，你獲得 2 生命。' },
   { name: '鳳凰重生', icon: '🔥', color: '#D9731F', short: '本局下一次你會被擊倒時，改為保留 1 生命。' },
   { name: '詛咒', icon: '💀', color: '#4B3B6B', short: '目標每個回合開始時失去 1 生命，直到他成功施放咒語。' },
   { name: '沉默', icon: '🤫', color: '#3C6E8F', short: '目標跳過他的下一個回合。' },
-  { name: '生命連結', icon: '🔗', color: '#2E8C7A', short: '直到你的下個回合，你失去多少生命，被連結的人也失去多少。' },
-  { name: '迷霧', icon: '🌫️', color: '#6B6F80', short: '直到你的下個回合，沒有人看得到目標的符石。' },
-  { name: '命運輪盤', icon: '🎡', color: '#B8860B', short: '轉動輪盤，看看命運給你什麼（大多是小事）。' },
+  { name: '左右開弓', icon: '↔️', color: '#2E8C7A', short: '你左右兩邊的玩家各失去 1 生命。（只有兩人時，對手只失去 1 生命）' },
+  { name: '左路突襲', icon: '⬅️', color: '#6B6F80', short: '你左邊的玩家失去 1 生命。' },
+  { name: '右路突襲', icon: '➡️', color: '#B8860B', short: '你右邊的玩家失去 1 生命。' },
   { name: '治癒', icon: '💚', color: '#2F8F4E', short: '你獲得 1 生命。' }
 ];
-const WHEEL_TEXT = {
-  heal: '你獲得 1 生命', hurt: '你失去 1 生命', left: '左邊的玩家失去 1 生命', right: '右邊的玩家失去 1 生命',
-  all: '所有人獲得 1 生命', peek: '偷看了自己的一顆符石', laugh: '什麼都沒發生，輪盤在嘲笑你'
-};
-const WHEEL_SLICES = ['你獲得 1 生命', '你失去 1 生命', '左邊的玩家失去 1 生命', '右邊的玩家失去 1 生命', '所有人獲得 1 生命', '偷看自己的一顆符石', '什麼都沒發生，輪盤在嘲笑你', '什麼都沒發生，輪盤在嘲笑你'];
 const ART = n => `/games/spellbound/art/spell-${n}.webp`;
 const FOG_ART = '/games/spellbound/art/fog.webp';
 /* The description shown when hovering a spell (or holding it on a phone). */
-const describe = n => `${n}. ${SP[n].name}：${SP[n].short}` + (n === 8 ? '\n輪盤（每格 1/8）：\n' + WHEEL_SLICES.map(x => '・' + x).join('\n') : '');
+const describe = n => `${n}. ${SP[n].name}：${SP[n].short}` + (SP[n].extra ? '\n' + SP[n].extra : '');
 function tipHTML(n) {
-  return `<span class="tip" role="tooltip"><b>${n}. ${esc(SP[n].name)}</b>${esc(SP[n].short)}${n === 8 ? `<span class="wheel"><b>輪盤（每格 1/8）</b>${WHEEL_SLICES.map(x => `<span>・${esc(x)}</span>`).join('')}</span>` : ''}</span>`;
+  return `<span class="tip" role="tooltip"><b>${n}. ${esc(SP[n].name)}</b>${esc(SP[n].short)}${SP[n].extra ? `<span class="wheel">${esc(SP[n].extra)}</span>` : ''}</span>`;
 }
-const L = { targets: [], tkey: '', queue: [], showing: false };
+const L = { targets: [], tkey: '', queue: [], showing: false, landing: {} };
 const nm = (pid, st) => (pid === st.you ? '你' : H.nameOf(pid));
 
 /* ---------- host settings (in the room) ---------- */
@@ -135,14 +130,24 @@ H.on('sp-target', (b, k) => {
 /* ---------- drawing ---------- */
 function stoneHTML(n, opts) {
   const o = opts || {};
-  if (o.fog) return `<span class="stone back fogged" title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
-  if (n == null) return '<span class="stone back" title="看不到"><span>?</span></span>';
-  return `<span class="stone art${o.known ? ' known' : ''}" title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
+  const id = o.id ? ` data-id="${o.id}"` : '';
+  if (o.fog) return `<span class="stone back fogged"${id} title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
+  if (n == null) return `<span class="stone back"${id} title="看不到"><span>?</span></span>`;
+  return `<span class="stone art${o.known ? ' known' : ''}"${id} title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
 }
 function hearts(n, max) {
   let h = '';
   for (let i = 0; i < Math.max(n, max); i++) h += i < n ? '<span>❤️</span>' : '<span class="gone">🖤</span>';
   return `<span class="hearts" aria-label="${n} 生命">${h}</span>`;
+}
+/* Mark the players sitting on your left and right, since spells 6, 7 and 8 hit them. */
+function side(g, pid, st) {
+  const nb = g.neighbours && g.neighbours[st.you];
+  if (!nb || pid === st.you) return '';
+  if (nb.left === pid && nb.right === pid) return ' ⬅️ 你的左右兩邊 ➡️';
+  if (nb.left === pid) return ' ⬅️ 你的左邊';
+  if (nb.right === pid) return ' 你的右邊 ➡️';
+  return '';
 }
 function tokens(g, pid, st) {
   const s = g.status[pid];
@@ -159,10 +164,10 @@ function seat(g, pid, st) {
   const isMe = pid === st.you;
   const fog = !!g.status[pid].fog && g.phase === 'play';
   const stones = g.racks[pid].map(x => isMe
-    ? stoneHTML(x.n, { known: x.n != null && g.phase === 'play' })
-    : stoneHTML(x.n, { fog: fog && x.n == null }));
+    ? stoneHTML(x.n, { known: x.n != null && g.phase === 'play', id: x.id })
+    : stoneHTML(x.n, { fog: fog && x.n == null, id: x.id }));
   return `<div class="spseat${t && t.pid === pid ? ' turn' : ''}${g.lives[pid] <= 0 ? ' out' : ''}${isMe ? ' me' : ''}" data-seat="${esc(pid)}">
-    <div class="sphead">${H.avatar(pid, isMe ? 34 : 28)}<span class="nm">${esc(isMe ? '你' : H.nameOf(pid))}<small>${t && t.pid === pid ? '施法中…' : ''}</small></span><span class="score">⭐ ${g.scores[pid]}</span></div>
+    <div class="sphead">${H.avatar(pid, isMe ? 34 : 28)}<span class="nm">${esc(isMe ? '你' : H.nameOf(pid))}<small>${t && t.pid === pid ? '施法中…' : ''}${side(g, pid, st)}</small></span><span class="score">⭐ ${g.scores[pid]}</span></div>
     ${hearts(g.lives[pid], g.settings.maxLives)}
     ${tokens(g, pid, st)}
     <div class="stones">${stones.join('') || '<span class="muted">（沒有符石）</span>'}</div>
@@ -208,30 +213,35 @@ function render(main, st) {
     const [x, y] = spotAt(i);
     return `<div class="spspot${pid === me ? ' mine' : ''}" style="left:${x.toFixed(2)}%;top:${y.toFixed(2)}%">${seat(g, pid, st)}</div>`;
   }).join('');
-  const recent = g.discard.slice(-5);
-  const center = `<div class="sp-center${cols ? ' out' : ''}">
-      <div class="sp-pile"><span class="stone back"><span>?</span></span><span><b>${g.pileLeft}</b><small>牌堆剩下</small></span></div>
-      <div class="sp-cast"><small>這局施放過</small><span class="row">${recent.length ? recent.map(x => stoneHTML(x)).join('') : '<span class="muted">還沒有</span>'}</span></div>
-    </div>`;
+  // Every stone cast this round, one row per spell.
+  const played = Array.from({ length: 10 }, () => 0);
+  for (const x of g.discard) played[x]++;
+  // The pile sits in the middle of the table; the stones cast this round sit in a panel at the side.
+  const pile = `<div class="sp-pile"><span class="stone back"><span>?</span></span><span><b>${g.pileLeft}</b><small>牌堆剩下</small></span></div>`;
+  const side = `<div class="sp-cast"><small>這局施放過</small>
+        <div class="played">${SP.slice(1).map((sp, i) => {
+          const n = i + 1, count = played[n], incoming = Math.min(count, L.landing[n] || 0);
+          return `<div class="prow" data-n="${n}" title="${esc(describe(n))}"><span class="pn">${n}</span><span class="pstones">${Array.from({ length: count }, (_, k) => `<img src="${ART(n)}" alt=""${k >= count - incoming ? ' class="incoming"' : ''}>`).join('')}</span></div>`;
+        }).join('')}</div></div>`;
   H.keepFocus(main, () => {
     main.innerHTML = `<section class="sp" lang="zh-Hant" aria-label="咒語大亂鬥">
       <div class="sp-top"><div class="sp-title">咒語大亂鬥 <small>第 ${g.round} 局 · 先到 ${g.settings.target} 分獲勝</small></div>
+        ${H.dd('sp-log', '戰況紀錄', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 'sp-log')}
+        ${H.dd('sp-rules', '玩法說明', rulesList(g.settings) + `<ul>${SP.slice(1).map((sp, i) => `<li><b>${i + 1}. ${sp.name}</b>（${g.settings.copies[i]} 顆）：${sp.short}${sp.extra ? `<br>${sp.extra}` : ''}</li>`).join('')}</ul>`, 'sp-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? '再按一次結束' : '結束遊戲'}</button>` : ''}</div>
-      ${cols ? center : ''}
-      <div class="sp-round ${size}${cols ? ' cols' : ''}">
-        <div class="sp-felt" aria-hidden="true"></div>
-        ${cols ? '' : center}
-        ${seats}
+      ${cols ? `<div class="sp-center out">${pile}${side}</div>` : ''}
+      <div class="sp-main">
+        <div class="sp-round ${size}${cols ? ' cols' : ''}">
+          <div class="sp-felt" aria-hidden="true"></div>
+          ${cols ? '' : `<div class="sp-center">${pile}</div>`}
+          ${seats}
+        </div>
+        ${cols ? '' : `<aside class="sp-side">${side}</aside>`}
       </div>
       ${playing ? '' : '<p class="muted" style="margin:0">你在遊戲開始後才加入，這一場先觀戰。</p>'}
       ${actHTML(g, st)}
-      <details class="sp-log"${L.logOpen ? ' open' : ''}><summary>戰況紀錄</summary><ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol></details>
-      <details class="sp-rules"><summary>玩法說明</summary>${rulesList(g.settings)}
-        <ul>${SP.slice(1).map((sp, i) => `<li><b>${i + 1}. ${sp.name}</b>（${g.settings.copies[i]} 顆）：${sp.short}${i === 7 ? `<br>輪盤（每格 1/8）：${WHEEL_SLICES.join('、')}` : ''}</li>`).join('')}</ul></details>
     </section>`;
   });
-  const lg = main.querySelector('.sp-log');
-  if (lg) lg.addEventListener('toggle', () => { L.logOpen = lg.open; });
 }
 
 function actHTML(g, st) {
@@ -241,6 +251,7 @@ function actHTML(g, st) {
   const who = esc(nm(t.pid, st));
   if (t.pid !== me) {
     if (t.step === 'target') return `<div class="sp-act"><h3>${who}施放了 ${SP[t.spell].icon} ${SP[t.spell].name}，正在選目標…</h3></div>`;
+    if (t.step === 'spin') return `<div class="sp-act"><h3>${who}猜 1 猜錯了！轉輪盤中…</h3><p class="muted">轉到幾，就失去幾條生命。</p></div>`;
     return `<div class="sp-act"><h3>輪到 ${who}</h3><p class="muted">${t.casts ? `已施放 ${t.casts} 次，可能繼續…` : '思考中…'}</p></div>`;
   }
   if (t.step === 'target') {
@@ -305,10 +316,11 @@ function logLine(e, st) {
   switch (e.k) {
     case 'round': return `<b>第 ${e.n} 局開始</b>`;
     case 'cast': return `${p}施放了 ${SP[e.n].icon} ${SP[e.n].name}`;
-    case 'miss': return `${p}猜 ${SP[e.n].icon} ${SP[e.n].name}，猜錯了，失去 1 生命`;
+    case 'miss': return `${p}猜 ${SP[e.n].icon} ${SP[e.n].name}，猜錯了${e.n === 1 ? '！要轉輪盤' : '，失去 1 生命'}`;
     case 'target': return `　→ 目標：${e.targets.map(x => esc(nm(x, st))).join('、')}`;
     case 'dice': return `　→ 🎲 擲出 ${e.roll}${e.roll === 1 ? '，自己失去 2 生命！' : '，其他人各失去 2 生命！'}`;
-    case 'wheel': return `　→ 🎡 ${WHEEL_TEXT[e.w]}${e.w === 'left' ? `（${esc(nm(e.left, st))}）` : e.w === 'right' ? `（${esc(nm(e.right, st))}）` : ''}`;
+    case 'sides': return `　→ ${e.targets.map(x => esc(nm(x, st))).join('、')} 失去 1 生命`;
+    case 'spin1': return `　→ 🎡 輪盤轉到 ${e.roll}，${p}失去 ${e.roll} 生命`;
     case 'phoenix': return `🔥 ${p}鳳凰重生，保住 1 生命！`;
     case 'dead': return `💀 ${p}倒下了${e.by ? `（${esc(nm(e.by, st))}）` : ''}`;
     case 'curse-tick': return `💀 ${p}受到詛咒，失去 1 生命`;
@@ -320,6 +332,105 @@ function logLine(e, st) {
   return '';
 }
 
+/* ---------- the 1-2-3 penalty wheel ---------- */
+function spinWheel(roll, ms, who) {
+  document.querySelectorAll('.sp-spin').forEach(x => x.remove());
+  const el = document.createElement('div');
+  el.className = 'sp-spin';
+  el.setAttribute('lang', 'zh-Hant');
+  // three equal slices; the pointer is at the top. Land in the middle of the rolled slice.
+  const turns = 5 * 360 + (360 - ((roll - 1) * 120 + 60));
+  el.innerHTML = `<div class="sp-spin-card"><div class="sp-spin-title">${who}猜 1 猜錯了！</div>
+    <div class="sp-wheel-wrap"><span class="sp-pointer">▼</span>
+      <svg class="sp-wheel" viewBox="-50 -50 100 100" style="--turn:${turns}deg;--ms:${Math.max(800, (ms || 2600) - 600)}ms">
+        ${[0, 1, 2].map(k => { const a0 = (k * 120 - 90) * Math.PI / 180, a1 = ((k + 1) * 120 - 90) * Math.PI / 180, am = ((k + .5) * 120 - 90) * Math.PI / 180;
+          return `<path d="M0 0 L${(48 * Math.cos(a0)).toFixed(2)} ${(48 * Math.sin(a0)).toFixed(2)} A48 48 0 0 1 ${(48 * Math.cos(a1)).toFixed(2)} ${(48 * Math.sin(a1)).toFixed(2)} Z" fill="${['#8E2A5A', '#B8860B', '#C0392B'][k]}" stroke="#F0C75E" stroke-width="1.5"/>
+            <text x="${(30 * Math.cos(am)).toFixed(2)}" y="${(30 * Math.sin(am)).toFixed(2)}" text-anchor="middle" dominant-baseline="central" font-size="20" font-weight="900" fill="#fff">${k + 1}</text>`; }).join('')}
+        <circle r="7" fill="#2A0E22" stroke="#F0C75E" stroke-width="2"/>
+      </svg></div>
+    <div class="sp-spin-result">失去 <b>${roll}</b> 生命</div></div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), (ms || 2600) + 1600);
+}
+
+/* ---------- calling a spell ----------
+   1. a bubble pops out of the caller's seat with the spell they called;
+   2a. right: their stone lifts out of the row, turns face up in the middle of the screen,
+       then flies into its row in the cast-stones panel;
+   2b. wrong: the bubble shakes red and fades. */
+function rectOf(el) { return el ? el.getBoundingClientRect() : null; }
+function centerOf(r) { return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: innerWidth / 2, y: innerHeight / 2 }; }
+function callAnim(e, hit, who) {
+  // Where things start: captured now, before the new state redraws the table.
+  const seat = document.querySelector(`.spseat[data-seat="${CSS.escape(e.pid)}"]`);
+  const from = centerOf(rectOf(seat && (seat.querySelector('[data-avatar]') || seat)));
+  const stone = hit && e.id ? document.querySelector(`.stone[data-id="${e.id}"]`) : null;
+  const stoneR = rectOf(stone);
+  if (hit) L.landing[e.n] = (L.landing[e.n] || 0) + 1;
+  const quick = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.2 : 1;
+  L.queue.push({ run: done => {
+    const mid = { x: innerWidth / 2, y: innerHeight * 0.42 };
+    const sp = SP[e.n];
+    const bubble = document.createElement('div');
+    bubble.className = 'sp-call';
+    bubble.setAttribute('lang', 'zh-Hant');
+    bubble.innerHTML = `<span class="who">${who}：</span><span class="num">${e.n}</span><span class="nm">${esc(sp.name)}</span>`;
+    bubble.style.left = mid.x + 'px'; bubble.style.top = (mid.y - 130) + 'px';
+    document.body.appendChild(bubble);
+    const dx = from.x - mid.x, dy = from.y - (mid.y - 130);
+    bubble.animate([{ transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(.3)`, opacity: 0 },
+      { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 1, offset: .7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }],
+      { duration: 450 * quick, easing: 'cubic-bezier(.2,.9,.3,1.2)', fill: 'forwards' });
+    if (!hit) {
+      setTimeout(() => {
+        bubble.classList.add('miss');
+        bubble.animate([0, -10, 10, -8, 8, -4, 0].map(x => ({ transform: `translate(-50%,-50%) translateX(${x}px)` })), { duration: 450 * quick, fill: 'forwards' });
+        bubble.insertAdjacentHTML('beforeend', `<span class="verdict">沒有！${e.n === 1 ? '' : '失去 1 生命'}</span>`);
+        setTimeout(() => {
+          bubble.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250 * quick, fill: 'forwards' }).onfinish = () => { bubble.remove(); done(); };
+        }, 900 * quick);
+      }, 550 * quick);
+      return;
+    }
+    // the stone turns over and comes to the middle
+    const card = document.createElement('div');
+    card.className = 'sp-flycard';
+    card.innerHTML = `<span class="face back"><span>?</span></span><span class="face front"><img src="${ART(e.n)}" alt=""></span><span class="cap">施放成功！</span>`;
+    const W = Math.min(150, innerWidth * 0.32), H_ = W * 322 / 240;
+    Object.assign(card.style, { width: W + 'px', height: H_ + 'px', left: (mid.x - W / 2) + 'px', top: (mid.y - H_ / 2 + 20) + 'px' });
+    const s0 = stoneR ? stoneR.width / W : 0.3;
+    const start = stoneR ? centerOf(stoneR) : from;
+    setTimeout(() => {
+      document.body.appendChild(card);
+      const tx = start.x - mid.x, ty = start.y - (mid.y + 20);
+      card.animate([{ transform: `translate(${tx}px,${ty}px) scale(${s0}) rotateY(180deg)` },
+        { transform: 'translate(0,0) scale(1) rotateY(0deg)' }], { duration: 600 * quick, easing: 'cubic-bezier(.3,.8,.3,1)', fill: 'forwards' });
+      setTimeout(() => card.classList.add('shown'), 450 * quick);
+      bubble.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300 * quick, delay: 500 * quick, fill: 'forwards' }).onfinish = () => bubble.remove();
+      // then off to its row in the cast-stones panel
+      setTimeout(() => {
+        const row = document.querySelector(`.sp-cast .prow[data-n="${e.n}"] .pstones`);
+        const slot = row && row.querySelector('img.incoming');
+        const tr = rectOf(slot || row);
+        const land = () => {
+          card.remove();
+          L.landing[e.n] = Math.max(0, (L.landing[e.n] || 1) - 1);
+          const img = document.querySelector(`.sp-cast .prow[data-n="${e.n}"] img.incoming`);
+          if (img) img.classList.remove('incoming');
+          done();
+        };
+        if (!tr) return land();
+        card.classList.remove('shown');
+        const to = centerOf(tr);
+        const tx2 = to.x - mid.x, ty2 = to.y - (mid.y + 20), s2 = Math.max(0.08, tr.width / W);
+        card.animate([{ transform: 'translate(0,0) scale(1)' }, { transform: `translate(${tx2}px,${ty2}px) scale(${s2})`, opacity: 0.9 }],
+          { duration: 550 * quick, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' }).onfinish = land;
+      }, 1250 * quick);
+    }, 450 * quick);
+  } });
+  if (!L.showing) showNext();
+}
+
 /* ---------- announcements ---------- */
 function banner(html, red) {
   L.queue.push({ html, red });
@@ -329,6 +440,7 @@ function showNext() {
   const b = L.queue.shift();
   if (!b) { L.showing = false; return; }
   L.showing = true;
+  if (b.run) return b.run(showNext);
   document.querySelectorAll('.sp-banner').forEach(e => e.remove());
   const el = document.createElement('div');
   el.className = 'sp-banner' + (b.red ? ' red' : '');
@@ -341,10 +453,10 @@ function fx(e) {
   const st = H.st;
   if (!st) return;
   const p = esc(nm(e.pid, st));
-  if (e.type === 'cast') banner(`${SP[e.n].icon} ${SP[e.n].name}！<small>${p}施放成功</small>`);
-  else if (e.type === 'miss') banner(`猜錯了！<small>${p}沒有 ${SP[e.n].icon} ${SP[e.n].name}，失去 1 生命</small>`, true);
+  if (e.type === 'cast') callAnim(e, true, p);
+  else if (e.type === 'miss') callAnim(e, false, p);
   else if (e.type === 'dice') banner(`🎲 擲出 ${e.roll}！<small>${e.roll === 1 ? `${p}自己失去 2 生命` : '其他人各失去 2 生命'}</small>`, e.roll === 1);
-  else if (e.type === 'wheel') banner(`🎡 ${WHEEL_TEXT[e.w]}${e.w === 'laugh' ? ' 😂' : ''}`);
+  else if (e.type === 'spin1') spinWheel(e.roll, e.ms, p);
   else if (e.type === 'phoenix') banner(`🔥 鳳凰重生！<small>${p}保住 1 生命</small>`);
   else if (e.type === 'silenced') banner(`🤫 ${p}被沉默<small>跳過這個回合</small>`);
   else if (e.type === 'dead') banner(`💀 ${p}倒下了！${e.by ? `<small>${esc(nm(e.by, st))} 擊倒了 ${p}</small>` : '<small>自己倒下</small>'}`, true);

@@ -1,0 +1,35 @@
+{
+  "name": "Medieval fantasy",
+  "items": [
+    {
+      "name": "Crown",
+      "file": "crown.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    },
+    {
+      "name": "Castle",
+      "file": "castle.svg",
+      "color": "#9B5DE5",
+      "colorName": "purple"
+    },
+    {
+      "name": "Shield",
+      "file": "shield.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    },
+    {
+      "name": "Sword",
+      "file": "sword.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Dragon",
+      "file": "dragon.svg",
+      "color": "#2EAF4E",
+      "colorName": "green"
+    }
+  ]
+}

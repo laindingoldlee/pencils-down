@@ -1,0 +1,10 @@
+{
+  "name": "Space",
+  "items": [
+    { "name": "Rocket",           "file": "rocket.svg",           "color": "#E8402F", "colorName": "red" },
+    { "name": "Ringed planet",    "file": "ringed-planet.svg",    "color": "#2EAF4E", "colorName": "green" },
+    { "name": "Satellite",        "file": "satellite.svg",        "color": "#2F7BEB", "colorName": "blue" },
+    { "name": "Comet",            "file": "comet.svg",            "color": "#F6C619", "colorName": "yellow" },
+    { "name": "Astronaut helmet", "file": "astronaut-helmet.svg", "color": "#F4F1E6", "colorName": "white" }
+  ]
+}

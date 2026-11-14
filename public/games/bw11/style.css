@@ -118,3 +118,13 @@
 }
 .bw,.bw *{min-width:0}
 .bw-table,.bw-act,.bw-seats{max-width:100%}
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.bw.fitted{gap:10px}
+.bw.fitted .bw-table{flex:none;padding:6px}
+.bw.fitted .bw-act{flex:none;padding:10px 14px}
+.bw.fitted .bw-seats{grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:8px}
+.bw.fitted .bseat{padding:6px 10px}
+.bw.fitted .rack{min-height:0;padding-top:20px}
+.bw.fitted .bw-seats:last-child,.bw.fitted .bw-seats:has(.me){flex:none}
+.bw.fitted > .bw-seats:not(:has(.me)){flex:1 1 auto;align-content:center}
