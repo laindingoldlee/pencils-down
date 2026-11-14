@@ -133,7 +133,7 @@ async function join(code, name, quiet) {
 }
 async function create(name) {
   S.joining = true; render();
-  const res = await emit('create', { name, pid: PID, secret: SECRET, color: myColor() });
+  const res = await emit('create', { name, pid: PID, secret: SECRET, color: myColor(), prefs: savedPrefs() });
   S.joining = false;
   if (res.ok) joined(res.code);
   else S.homeError = res.error || 'Couldn’t start a room.';
@@ -166,6 +166,7 @@ function render() {
   Shared.emotes.show(!!S.st);
   Shared.keepAwake(!!(S.st && S.st.game)); // keep the phone screen on during a game
   noticeMyMove();
+  rememberSettings();
   const st = S.st;
   const main = $('main');
   $('roomchip').innerHTML = st ? `Room <b>${esc(st.code)}</b>` : '';
@@ -279,6 +280,15 @@ function noticeMyMove() {
   S.hadGame = !!(st && st.game);
   if (msg && msg !== S.lastMove) Shared.attention(msg);
   S.lastMove = msg;
+}
+
+/* ---------- the host's settings, remembered for the next room they start ---------- */
+const savedPrefs = () => { try { return JSON.parse(store.get('gn.prefs') || 'null'); } catch (e) { return null; } };
+function rememberSettings() {
+  const st = S.st;
+  if (!st || !isHost()) return;
+  const json = JSON.stringify({ selected: st.selected, settings: st.settings });
+  if (json !== S.savedPrefs) { S.savedPrefs = json; store.set('gn.prefs', json); }
 }
 
 /* ---------- changing your name or avatar colour ---------- */
