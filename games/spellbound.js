@@ -229,7 +229,7 @@ function pick(g, pid, p) {
     t.last = n;
     g.status[pid].curse = null; // a correct cast lifts a curse
     log(g, { k: 'cast', pid, n });
-    g.ctx.fx({ type: 'cast', pid, n });
+    g.ctx.fx({ type: 'cast', pid, n, id: stone.id });
     if (NEEDS[n] && others(g, pid).length) {
       t.step = 'target'; t.spell = n;
       g.ctx.broadcast();

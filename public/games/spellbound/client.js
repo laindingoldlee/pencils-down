@@ -14,7 +14,7 @@ const SP = [null,
   { name: '鳳凰重生', icon: '🔥', color: '#D9731F', short: '本局下一次你會被擊倒時，改為保留 1 生命。' },
   { name: '詛咒', icon: '💀', color: '#4B3B6B', short: '目標每個回合開始時失去 1 生命，直到他成功施放咒語。' },
   { name: '沉默', icon: '🤫', color: '#3C6E8F', short: '目標跳過他的下一個回合。' },
-  { name: '雙面夾擊', icon: '↔️', color: '#2E8C7A', short: '你左右兩邊的玩家各失去 1 生命。（只有兩人時，對手只失去 1 生命）' },
+  { name: '左右開弓', icon: '↔️', color: '#2E8C7A', short: '你左右兩邊的玩家各失去 1 生命。（只有兩人時，對手只失去 1 生命）' },
   { name: '左路突襲', icon: '⬅️', color: '#6B6F80', short: '你左邊的玩家失去 1 生命。' },
   { name: '右路突襲', icon: '➡️', color: '#B8860B', short: '你右邊的玩家失去 1 生命。' },
   { name: '治癒', icon: '💚', color: '#2F8F4E', short: '你獲得 1 生命。' }
@@ -26,7 +26,7 @@ const describe = n => `${n}. ${SP[n].name}：${SP[n].short}` + (SP[n].extra ? '\
 function tipHTML(n) {
   return `<span class="tip" role="tooltip"><b>${n}. ${esc(SP[n].name)}</b>${esc(SP[n].short)}${SP[n].extra ? `<span class="wheel">${esc(SP[n].extra)}</span>` : ''}</span>`;
 }
-const L = { targets: [], tkey: '', queue: [], showing: false };
+const L = { targets: [], tkey: '', queue: [], showing: false, landing: {} };
 const nm = (pid, st) => (pid === st.you ? '你' : H.nameOf(pid));
 
 /* ---------- host settings (in the room) ---------- */
@@ -130,9 +130,10 @@ H.on('sp-target', (b, k) => {
 /* ---------- drawing ---------- */
 function stoneHTML(n, opts) {
   const o = opts || {};
-  if (o.fog) return `<span class="stone back fogged" title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
-  if (n == null) return '<span class="stone back" title="看不到"><span>?</span></span>';
-  return `<span class="stone art${o.known ? ' known' : ''}" title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
+  const id = o.id ? ` data-id="${o.id}"` : '';
+  if (o.fog) return `<span class="stone back fogged"${id} title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
+  if (n == null) return `<span class="stone back"${id} title="看不到"><span>?</span></span>`;
+  return `<span class="stone art${o.known ? ' known' : ''}"${id} title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
 }
 function hearts(n, max) {
   let h = '';
@@ -163,8 +164,8 @@ function seat(g, pid, st) {
   const isMe = pid === st.you;
   const fog = !!g.status[pid].fog && g.phase === 'play';
   const stones = g.racks[pid].map(x => isMe
-    ? stoneHTML(x.n, { known: x.n != null && g.phase === 'play' })
-    : stoneHTML(x.n, { fog: fog && x.n == null }));
+    ? stoneHTML(x.n, { known: x.n != null && g.phase === 'play', id: x.id })
+    : stoneHTML(x.n, { fog: fog && x.n == null, id: x.id }));
   return `<div class="spseat${t && t.pid === pid ? ' turn' : ''}${g.lives[pid] <= 0 ? ' out' : ''}${isMe ? ' me' : ''}" data-seat="${esc(pid)}">
     <div class="sphead">${H.avatar(pid, isMe ? 34 : 28)}<span class="nm">${esc(isMe ? '你' : H.nameOf(pid))}<small>${t && t.pid === pid ? '施法中…' : ''}${side(g, pid, st)}</small></span><span class="score">⭐ ${g.scores[pid]}</span></div>
     ${hearts(g.lives[pid], g.settings.maxLives)}
@@ -218,7 +219,10 @@ function render(main, st) {
   // The pile sits in the middle of the table; the stones cast this round sit in a panel at the side.
   const pile = `<div class="sp-pile"><span class="stone back"><span>?</span></span><span><b>${g.pileLeft}</b><small>牌堆剩下</small></span></div>`;
   const side = `<div class="sp-cast"><small>這局施放過</small>
-        <div class="played">${SP.slice(1).map((sp, i) => `<div class="prow" title="${esc(describe(i + 1))}"><span class="pn">${i + 1}</span><span class="pstones">${Array.from({ length: played[i + 1] }, () => `<img src="${ART(i + 1)}" alt="">`).join('')}</span></div>`).join('')}</div></div>`;
+        <div class="played">${SP.slice(1).map((sp, i) => {
+          const n = i + 1, count = played[n], incoming = Math.min(count, L.landing[n] || 0);
+          return `<div class="prow" data-n="${n}" title="${esc(describe(n))}"><span class="pn">${n}</span><span class="pstones">${Array.from({ length: count }, (_, k) => `<img src="${ART(n)}" alt=""${k >= count - incoming ? ' class="incoming"' : ''}>`).join('')}</span></div>`;
+        }).join('')}</div></div>`;
   H.keepFocus(main, () => {
     main.innerHTML = `<section class="sp" lang="zh-Hant" aria-label="咒語大亂鬥">
       <div class="sp-top"><div class="sp-title">咒語大亂鬥 <small>第 ${g.round} 局 · 先到 ${g.settings.target} 分獲勝</small></div>
@@ -349,6 +353,84 @@ function spinWheel(roll, ms, who) {
   setTimeout(() => el.remove(), (ms || 2600) + 1600);
 }
 
+/* ---------- calling a spell ----------
+   1. a bubble pops out of the caller's seat with the spell they called;
+   2a. right: their stone lifts out of the row, turns face up in the middle of the screen,
+       then flies into its row in the cast-stones panel;
+   2b. wrong: the bubble shakes red and fades. */
+function rectOf(el) { return el ? el.getBoundingClientRect() : null; }
+function centerOf(r) { return r ? { x: r.left + r.width / 2, y: r.top + r.height / 2 } : { x: innerWidth / 2, y: innerHeight / 2 }; }
+function callAnim(e, hit, who) {
+  // Where things start: captured now, before the new state redraws the table.
+  const seat = document.querySelector(`.spseat[data-seat="${CSS.escape(e.pid)}"]`);
+  const from = centerOf(rectOf(seat && (seat.querySelector('[data-avatar]') || seat)));
+  const stone = hit && e.id ? document.querySelector(`.stone[data-id="${e.id}"]`) : null;
+  const stoneR = rectOf(stone);
+  if (hit) L.landing[e.n] = (L.landing[e.n] || 0) + 1;
+  const quick = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0.2 : 1;
+  L.queue.push({ run: done => {
+    const mid = { x: innerWidth / 2, y: innerHeight * 0.42 };
+    const sp = SP[e.n];
+    const bubble = document.createElement('div');
+    bubble.className = 'sp-call';
+    bubble.setAttribute('lang', 'zh-Hant');
+    bubble.innerHTML = `<span class="who">${who}：</span><span class="num">${e.n}</span><span class="nm">${esc(sp.name)}</span>`;
+    bubble.style.left = mid.x + 'px'; bubble.style.top = (mid.y - 130) + 'px';
+    document.body.appendChild(bubble);
+    const dx = from.x - mid.x, dy = from.y - (mid.y - 130);
+    bubble.animate([{ transform: `translate(-50%,-50%) translate(${dx}px,${dy}px) scale(.3)`, opacity: 0 },
+      { transform: 'translate(-50%,-50%) scale(1.08)', opacity: 1, offset: .7 }, { transform: 'translate(-50%,-50%) scale(1)', opacity: 1 }],
+      { duration: 450 * quick, easing: 'cubic-bezier(.2,.9,.3,1.2)', fill: 'forwards' });
+    if (!hit) {
+      setTimeout(() => {
+        bubble.classList.add('miss');
+        bubble.animate([0, -10, 10, -8, 8, -4, 0].map(x => ({ transform: `translate(-50%,-50%) translateX(${x}px)` })), { duration: 450 * quick, fill: 'forwards' });
+        bubble.insertAdjacentHTML('beforeend', `<span class="verdict">沒有！${e.n === 1 ? '' : '失去 1 生命'}</span>`);
+        setTimeout(() => {
+          bubble.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 250 * quick, fill: 'forwards' }).onfinish = () => { bubble.remove(); done(); };
+        }, 900 * quick);
+      }, 550 * quick);
+      return;
+    }
+    // the stone turns over and comes to the middle
+    const card = document.createElement('div');
+    card.className = 'sp-flycard';
+    card.innerHTML = `<span class="face back"><span>?</span></span><span class="face front"><img src="${ART(e.n)}" alt=""></span><span class="cap">施放成功！</span>`;
+    const W = Math.min(150, innerWidth * 0.32), H_ = W * 322 / 240;
+    Object.assign(card.style, { width: W + 'px', height: H_ + 'px', left: (mid.x - W / 2) + 'px', top: (mid.y - H_ / 2 + 20) + 'px' });
+    const s0 = stoneR ? stoneR.width / W : 0.3;
+    const start = stoneR ? centerOf(stoneR) : from;
+    setTimeout(() => {
+      document.body.appendChild(card);
+      const tx = start.x - mid.x, ty = start.y - (mid.y + 20);
+      card.animate([{ transform: `translate(${tx}px,${ty}px) scale(${s0}) rotateY(180deg)` },
+        { transform: 'translate(0,0) scale(1) rotateY(0deg)' }], { duration: 600 * quick, easing: 'cubic-bezier(.3,.8,.3,1)', fill: 'forwards' });
+      setTimeout(() => card.classList.add('shown'), 450 * quick);
+      bubble.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300 * quick, delay: 500 * quick, fill: 'forwards' }).onfinish = () => bubble.remove();
+      // then off to its row in the cast-stones panel
+      setTimeout(() => {
+        const row = document.querySelector(`.sp-cast .prow[data-n="${e.n}"] .pstones`);
+        const slot = row && row.querySelector('img.incoming');
+        const tr = rectOf(slot || row);
+        const land = () => {
+          card.remove();
+          L.landing[e.n] = Math.max(0, (L.landing[e.n] || 1) - 1);
+          const img = document.querySelector(`.sp-cast .prow[data-n="${e.n}"] img.incoming`);
+          if (img) img.classList.remove('incoming');
+          done();
+        };
+        if (!tr) return land();
+        card.classList.remove('shown');
+        const to = centerOf(tr);
+        const tx2 = to.x - mid.x, ty2 = to.y - (mid.y + 20), s2 = Math.max(0.08, tr.width / W);
+        card.animate([{ transform: 'translate(0,0) scale(1)' }, { transform: `translate(${tx2}px,${ty2}px) scale(${s2})`, opacity: 0.9 }],
+          { duration: 550 * quick, easing: 'cubic-bezier(.5,0,.3,1)', fill: 'forwards' }).onfinish = land;
+      }, 1250 * quick);
+    }, 450 * quick);
+  } });
+  if (!L.showing) showNext();
+}
+
 /* ---------- announcements ---------- */
 function banner(html, red) {
   L.queue.push({ html, red });
@@ -358,6 +440,7 @@ function showNext() {
   const b = L.queue.shift();
   if (!b) { L.showing = false; return; }
   L.showing = true;
+  if (b.run) return b.run(showNext);
   document.querySelectorAll('.sp-banner').forEach(e => e.remove());
   const el = document.createElement('div');
   el.className = 'sp-banner' + (b.red ? ' red' : '');
@@ -370,8 +453,8 @@ function fx(e) {
   const st = H.st;
   if (!st) return;
   const p = esc(nm(e.pid, st));
-  if (e.type === 'cast') banner(`${SP[e.n].icon} ${SP[e.n].name}！<small>${p}施放成功</small>`);
-  else if (e.type === 'miss') { if (e.n !== 1) banner(`猜錯了！<small>${p}沒有 ${SP[e.n].icon} ${SP[e.n].name}，失去 1 生命</small>`, true); }
+  if (e.type === 'cast') callAnim(e, true, p);
+  else if (e.type === 'miss') callAnim(e, false, p);
   else if (e.type === 'dice') banner(`🎲 擲出 ${e.roll}！<small>${e.roll === 1 ? `${p}自己失去 2 生命` : '其他人各失去 2 生命'}</small>`, e.roll === 1);
   else if (e.type === 'spin1') spinWheel(e.roll, e.ms, p);
   else if (e.type === 'phoenix') banner(`🔥 鳳凰重生！<small>${p}保住 1 生命</small>`);
