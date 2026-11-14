@@ -64,7 +64,9 @@ H.on('fe-theme', (b, k) => { const st = H.st; st.settings.fifth.theme = k; H.ren
 /* ---------- picking an item ---------- */
 async function pick(item) {
   const st = H.st, g = st && st.game;
-  if (!g || g.phase !== 'card' || L.pending || L.pickedSeq === g.seq) return;
+  // A click that lands just after someone else won this card still gets your own time back.
+  const lateClick = g && g.phase === 'result' && g.result && g.result.winner && g.result.winner !== st.you;
+  if (!g || (g.phase !== 'card' && !lateClick) || L.pending || L.pickedSeq === g.seq) return;
   if (g.locked.includes(st.you) || (g.sudden && !g.sudden.includes(st.you))) return;
   L.pickedSeq = g.seq;
   L.pending = true;
@@ -74,6 +76,9 @@ async function pick(item) {
   L.pending = false;
   if (r.ok && !r.correct) {
     L.wrong = { seq, item };
+  } else if (!r.ok && r.late && r.ms != null) {
+    // Someone beat you to it: remember your own time to show under the result.
+    L.lateTime = { seq, ms: r.ms, correct: r.correct, diff: r.ms - r.winnerMs };
   } else if (!r.ok) {
     // Too late (someone else got it) or not allowed: let them try again if the card is still up.
     if (H.st && H.st.game && H.st.game.seq === seq && !r.late) L.pickedSeq = -1;
@@ -262,7 +267,12 @@ function updateMsg(st, g, t) {
     if (r.winner) {
       const who = r.winner === st.you ? 'You' : esc(H.nameOf(r.winner));
       const extra = r.cards > 1 ? ` · ${r.cards} cards` : '';
-      html = `<span class="${r.winner === st.you ? 'good' : ''}">${who} grabbed the ${ans}!</span><small>${(r.ms / 1000).toFixed(2)}s${extra}</small>`;
+      // Your own time, if you clicked just after the winner.
+      const lt = L.lateTime && L.lateTime.seq === g.seq && r.winner !== st.you ? L.lateTime : null;
+      const mine = !lt ? '' : !lt.correct ? ` · you picked the wrong one (${(lt.ms / 1000).toFixed(2)}s)`
+        : lt.diff <= 100 ? ` · <span class="nearmiss">Near miss!</span> You: ${(lt.ms / 1000).toFixed(2)}s`
+        : ` · You: ${(lt.ms / 1000).toFixed(2)}s`;
+      html = `<span class="${r.winner === st.you ? 'good' : ''}">${who} grabbed the ${ans}!</span><small>${(r.ms / 1000).toFixed(2)}s${extra}${mine}</small>`;
     } else if (r.lost) {
       html = `Nobody got it. It was the ${ans}.<small>That was the last card, so it’s discarded</small>`;
     } else {

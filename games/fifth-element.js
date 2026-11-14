@@ -160,6 +160,14 @@ function canPlay(g, pid) { return !g.sudden || g.sudden.includes(pid); }
 function eligible(g) { return g.ctx.onlineIds().filter(pid => canPlay(g, pid)); }
 
 function pick(g, pid, payload) {
+  // Clicked just after someone else won this card: no effect on the game, but tell the player
+  // their own reaction time (timed the same way as the winner's) and whether they had it right.
+  if (g.phase === 'result' && payload.seq === g.seq && g.result && g.result.winner && g.result.winner !== pid && !g.locked.has(pid)) {
+    if (g.lateSeen && g.lateSeen.seq === g.seq && g.lateSeen.pids.has(pid)) return { ok: false, late: true };
+    if (!g.lateSeen || g.lateSeen.seq !== g.seq) g.lateSeen = { seq: g.seq, pids: new Set() };
+    g.lateSeen.pids.add(pid);
+    return { ok: false, late: true, correct: Number(payload.item) === g.result.answer, ms: Date.now() - g.shownAt, winnerMs: g.result.ms };
+  }
   if (g.phase !== 'card' || payload.seq !== g.seq) return { ok: false, late: true };
   if (!canPlay(g, pid)) return { ok: false, error: 'Only the tied players play the sudden-death card.' };
   if (g.locked.has(pid)) return { ok: false, error: 'You’re locked out of this card.' };
