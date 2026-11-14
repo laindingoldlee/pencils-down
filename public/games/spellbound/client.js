@@ -12,7 +12,7 @@ const SP = [null,
   { name: '孤注一擲', icon: '🎲', color: '#C0392B', short: '擲骰：2–6 其他所有人各失去 2 生命；擲到 1 你自己失去 2 生命。', extra: '小心：猜 1 卻沒有 1 的話，要轉 1・2・3 的輪盤，轉到幾就失去幾條生命。' },
   { name: '雙重吸取', icon: '🩸', color: '#8E2A5A', short: '選兩位玩家各失去 1 生命，你獲得 2 生命。' },
   { name: '鳳凰重生', icon: '🔥', color: '#D9731F', short: '本局下一次你會被擊倒時，改為保留 1 生命。' },
-  { name: '詛咒', icon: '💀', color: '#4B3B6B', short: '目標每個回合開始時失去 1 生命，直到他成功施放咒語。' },
+  { name: '詛咒', icon: '💀', color: '#4B3B6B', short: '被詛咒的人每猜錯一次，就多失去 1 生命，直到他成功施放咒語為止。' },
   { name: '沉默', icon: '🤫', color: '#3C6E8F', short: '目標跳過他的下一個回合。' },
   { name: '左右開弓', icon: '↔️', color: '#2E8C7A', short: '你左右兩邊的玩家各失去 1 生命。（只有兩人時，對手只失去 1 生命）' },
   { name: '左路突襲', icon: '⬅️', color: '#6B6F80', short: '你左邊的玩家失去 1 生命。' },
@@ -323,7 +323,7 @@ function logLine(e, st) {
     case 'spin1': return `　→ 🎡 輪盤轉到 ${e.roll}，${p}失去 ${e.roll} 生命`;
     case 'phoenix': return `🔥 ${p}鳳凰重生，保住 1 生命！`;
     case 'dead': return `💀 ${p}倒下了${e.by ? `（${esc(nm(e.by, st))}）` : ''}`;
-    case 'curse-tick': return `💀 ${p}受到詛咒，失去 1 生命`;
+    case 'curse-tick': return `💀 ${p}受到詛咒，多失去 1 生命`;
     case 'silenced': return `🤫 ${p}被沉默，跳過回合`;
     case 'end': return `${p}結束回合`;
     case 'away': return `${p}不在，回合跳過`;
