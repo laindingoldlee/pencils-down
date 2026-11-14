@@ -8,7 +8,24 @@
 .fe-top{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
 .fe-title{font-family:var(--font-display);font-size:1.05rem;color:var(--gold);margin-right:auto}
 .fe-left{font-size:.9rem;color:var(--felt-soft);display:flex;align-items:center;gap:8px}
-.fe-left .deckpile{width:18px;height:var(--dh,12px);background:repeating-linear-gradient(to top,#4B3E9C 0 2px,#2D2470 2px 3px);border-top:2px solid var(--gold);border-radius:2px;transition:height .4s}
+/* the deck beside the card: a stack of face-down cards that gets thinner as cards are dealt */
+.fe-deckrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:22px;width:100%}
+.fe-deck{justify-self:end;display:flex;flex-direction:column;align-items:center;--w:clamp(70px,9vw,104px)}
+.fe-deck .top{width:var(--w);aspect-ratio:3/2;border-radius:10px;border:2px solid var(--gold);
+  background:repeating-linear-gradient(45deg,#3A2F86 0 6px,#33297A 6px 12px);box-shadow:0 -1px 0 rgba(255,255,255,.08) inset;position:relative;z-index:1;transition:opacity .3s}
+.fe-deck .top::after{content:"✦";position:absolute;inset:0;display:grid;place-items:center;color:var(--gold);font-size:calc(var(--w) * .28);opacity:.85}
+.fe-deck .edge{width:calc(var(--w) - 2px);height:calc(2px + var(--frac,1) * 46px);margin-top:-6px;border-radius:0 0 8px 8px;
+  background:repeating-linear-gradient(to bottom,#E9DFB8 0 2px,#8E7F4E 2px 3px);border:1px solid #6E6038;border-top:0;box-shadow:0 8px 14px rgba(0,0,0,.45);transition:height .45s ease}
+.fe-deck.empty .top{background:none;border-style:dashed;opacity:.45}
+.fe-deck.empty .top::after{content:""}
+.fe-deck.empty .edge{height:0;border:0;box-shadow:none}
+.fe-deck.gone{visibility:hidden}
+@media (max-width:620px){
+  .fe-deckrow{gap:10px}
+  .fe-deck{--w:54px}
+  .fe-deck .edge{height:calc(2px + var(--frac,1) * 30px)}
+  .fe-deckrow .fe-cardwrap{width:min(330px,60vw)}
+}
 
 /* seats and piles */
 .fe-seats{display:flex;flex-wrap:wrap;justify-content:center;gap:12px 8px}
