@@ -59,4 +59,11 @@ body.inroom{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 /* sound on/off button in the page header */
 .soundbtn{border:1.5px solid var(--line-strong,var(--rule-strong));background:transparent;border-radius:999px;width:38px;height:38px;display:grid;place-items:center;font-size:1.1rem;padding:0;flex:none;cursor:pointer}
 .soundbtn:hover{background:var(--hilite)}
+.soundwrap{position:relative;display:inline-block}
+.soundpop{position:absolute;right:0;top:calc(100% + 8px);z-index:40;display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;
+  background:var(--panel,var(--sheet));border:1px solid var(--line-strong,var(--rule-strong));box-shadow:var(--shadow);white-space:nowrap}
+.soundpop[hidden]{display:none}
+.soundpop input{width:130px;accent-color:var(--brand,var(--ink))}
+.soundpop output{font-weight:700;font-variant-numeric:tabular-nums;min-width:3.2em;text-align:right;color:var(--ink)}
+.soundmute{border:0;background:none;font-size:1.1rem;padding:2px;cursor:pointer}
 

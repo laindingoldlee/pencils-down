@@ -297,7 +297,7 @@ function boom(level) {
     o.frequency.setValueAtTime(220 + level * 40, t0);
     o.frequency.exponentialRampToValueAtTime(40, t0 + 0.5);
     gn.gain.setValueAtTime(0.0001, t0);
-    gn.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
+    gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.35 * Shared.volume()), t0 + 0.02);
     gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
     o.connect(gn).connect(ctx.destination);
     o.start(t0); o.stop(t0 + 0.65);
@@ -306,7 +306,7 @@ function boom(level) {
       o2.type = 'square';
       o2.frequency.setValueAtTime(660 + i * 110, t0 + 0.12 * i);
       g2.gain.setValueAtTime(0.0001, t0 + 0.12 * i);
-      g2.gain.exponentialRampToValueAtTime(0.12, t0 + 0.12 * i + 0.01);
+      g2.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.12 * Shared.volume()), t0 + 0.12 * i + 0.01);
       g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12 * i + 0.18);
       o2.connect(g2).connect(ctx.destination);
       o2.start(t0 + 0.12 * i); o2.stop(t0 + 0.12 * i + 0.2);
@@ -318,7 +318,7 @@ function playKill(lvl, name) {
   if (!Shared.soundOn()) return;
   const src = ((H.catalog.bw11 || {}).sounds || {})[name];
   if (!src) return boom(lvl);
-  try { const a = new Audio(src); a.play().catch(() => boom(lvl)); } catch (e) { boom(lvl); }
+  try { const a = new Audio(src); a.volume = Shared.volume(); a.play().catch(() => boom(lvl)); } catch (e) { boom(lvl); }
 }
 function fx(e, g) {
   const st = H.st;

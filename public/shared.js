@@ -14,7 +14,15 @@ const store = {
 };
 
 /* ---------- sound ---------- */
-let soundOn = store.get('gn.sound') !== 'off';
+/* Volume from 0 to 100, remembered by this browser. 100 is the original loudness; the default is 50.
+   (A browser that had muted sound with the old on/off switch starts at 0.) */
+let volume = (() => {
+  const v = Number(store.get('gn.volume'));
+  if (store.get('gn.volume') !== null && Number.isFinite(v)) return Math.max(0, Math.min(100, Math.round(v)));
+  return store.get('gn.sound') === 'off' ? 0 : 50;
+})();
+let lastVolume = volume || 50;
+const gain = () => volume / 100;
 let actx = null;
 function audio() {
   try {
@@ -25,22 +33,43 @@ function audio() {
 }
 // Browsers only allow sound after the player has touched the page once.
 document.addEventListener('pointerdown', () => audio(), { once: true, capture: true });
+const icon = () => (volume === 0 ? '🔇' : volume < 50 ? '🔉' : '🔊');
+/* The speaker button opens a small volume slider with a mute switch. */
 function soundButtonHTML() {
-  return `<button type="button" class="soundbtn" data-act="sound-toggle" aria-pressed="${soundOn}" title="${soundOn ? 'Sound on: click to mute' : 'Sound off: click to turn on'}" aria-label="${soundOn ? 'Mute sound' : 'Turn sound on'}">${soundOn ? '🔊' : '🔇'}</button>`;
+  return `<span class="soundwrap"><button type="button" class="soundbtn" data-act="sound-toggle" aria-expanded="false" title="Volume: ${volume}%" aria-label="Volume ${volume}%">${icon()}</button>
+    <span class="soundpop" hidden><button type="button" class="soundmute" data-act="sound-mute" aria-label="${volume ? 'Mute' : 'Unmute'}">${icon()}</button>
+    <input type="range" min="0" max="100" step="5" value="${volume}" aria-label="Volume" data-act="sound-volume"><output>${volume}%</output></span></span>`;
 }
-function setSound(on) {
-  soundOn = !!on;
-  store.set('gn.sound', soundOn ? 'on' : 'off');
-  document.querySelectorAll('[data-act="sound-toggle"]').forEach(b => { b.outerHTML = soundButtonHTML(); });
-  if (soundOn) chime();
+function setVolume(v, quiet) {
+  volume = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
+  if (volume) lastVolume = volume;
+  store.set('gn.volume', String(volume));
+  document.querySelectorAll('.soundwrap').forEach(w => {
+    w.querySelector('.soundbtn').textContent = icon();
+    w.querySelector('.soundbtn').title = `Volume: ${volume}%`;
+    w.querySelector('.soundmute').textContent = icon();
+    w.querySelector('input').value = volume;
+    w.querySelector('output').textContent = volume + '%';
+  });
+  if (!quiet) chime();
 }
 document.addEventListener('click', e => {
   const b = e.target.closest && e.target.closest('[data-act="sound-toggle"]');
-  if (b) setSound(!soundOn);
+  if (b) {
+    const pop = b.parentElement.querySelector('.soundpop');
+    pop.hidden = !pop.hidden;
+    b.setAttribute('aria-expanded', String(!pop.hidden));
+    return;
+  }
+  if (e.target.closest && e.target.closest('[data-act="sound-mute"]')) return setVolume(volume ? 0 : lastVolume);
+  // clicking elsewhere closes the slider
+  if (!(e.target.closest && e.target.closest('.soundwrap'))) document.querySelectorAll('.soundpop').forEach(p => { p.hidden = true; });
 });
+document.addEventListener('input', e => { if (e.target.matches && e.target.matches('[data-act="sound-volume"]')) setVolume(e.target.value, true); });
+document.addEventListener('change', e => { if (e.target.matches && e.target.matches('[data-act="sound-volume"]')) setVolume(e.target.value); });
 /* Two soft rising notes. */
 function chime() {
-  if (!soundOn) return;
+  if (!volume) return;
   const ctx = audio();
   if (!ctx) return;
   const t0 = ctx.currentTime;
@@ -48,7 +77,7 @@ function chime() {
     const o = ctx.createOscillator(), g = ctx.createGain();
     o.type = 'sine'; o.frequency.value = f;
     g.gain.setValueAtTime(0.0001, t0 + d);
-    g.gain.exponentialRampToValueAtTime(0.18, t0 + d + 0.02);
+    g.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.18 * gain()), t0 + d + 0.02);
     g.gain.exponentialRampToValueAtTime(0.0001, t0 + d + 0.45);
     o.connect(g).connect(ctx.destination);
     o.start(t0 + d); o.stop(t0 + d + 0.5);
@@ -201,7 +230,7 @@ function playEmote(pid, id) {
 
 return {
   esc, store,
-  soundOn: () => soundOn, setSound, soundButtonHTML, chime,
+  soundOn: () => volume > 0, volume: gain, setVolume, soundButtonHTML, chime,
   attention, keepAwake,
   emotes: { init(send) { E.send = send; ensureBar(); }, set: setEmotes, show: showBar, play: playEmote }
 };
