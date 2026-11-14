@@ -143,7 +143,9 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .seg button+button{border-left:1.5px solid var(--ink)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .seg button:disabled{cursor:default}
-.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;align-items:start;grid-auto-rows:min-content}
+.themes .theme{align-content:start}
+.setting.stack:has(.themes){flex-wrap:nowrap}
 .theme{border:2px solid var(--line);border-radius:10px;background:var(--felt);color:var(--felt-ink);padding:10px 12px;display:grid;gap:8px;text-align:left}
 .theme[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 35%,transparent)}
 .theme:disabled{cursor:default}

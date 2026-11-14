@@ -46,6 +46,8 @@ function settings(st) {
   <div class="setting stack"><span class="label">Item set</span>
     <div class="themes">${themes.map(th => `<button type="button" class="theme" data-act="fe-theme" data-k="${esc(th.id)}" aria-pressed="${s.theme === th.id}" ${host ? '' : 'disabled'}>
       <strong>${esc(th.name)}</strong><span class="row">${th.items.map(x => ico(x, x.color)).join('')}</span></button>`).join('')}</div></div>
+  <div class="setting"><span class="label">Practice on your own<br><small class="muted" style="font-weight:400">20 cards, just you, nobody else sees it</small></span>
+    <button type="button" class="btn" data-act="fe-practice">Practice</button></div>
   <div class="setting stack"><span class="label">How to play</span>
     <ul class="rules">
       <li>Each card shows two items. Be the first to click the right one of the five items below the card.</li>
@@ -82,6 +84,7 @@ async function pick(item) {
 // pointerdown answers a few milliseconds sooner than click, which matters in a speed game.
 document.addEventListener('pointerdown', e => {
   const b = e.target.closest('.fe-item');
+  if (b && b.closest('#fePractice')) return; // practice has its own handler
   if (!b || e.button > 0) return;
   e.preventDefault();
   pick(Number(b.dataset.k));
@@ -90,6 +93,7 @@ H.on('fe-pick', (b, k) => pick(Number(k)));
 document.addEventListener('keydown', e => {
   if (e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
   const st = H.st;
+  if (document.getElementById('fePractice')) return; // practice has its own keys
   if (!st || !st.game || st.game.id !== 'fifth') return;
   const n = Number(e.key);
   if (n >= 1 && n <= 5) { e.preventDefault(); pick(n - 1); }
@@ -346,6 +350,104 @@ function renderFinal(main, st, g) {
     </section>`;
   });
 }
+
+/* ---------- solo practice ----------
+   Runs entirely in this browser: same cards and rules, 20 cards, then your accuracy and speed. */
+const PRACTICE_CARDS = 20;
+function practiceDeck() {
+  const cards = [];
+  for (let i = 0; i < 5; i++) for (let j = 0; j < 5; j++) {
+    if (j === i) continue;
+    for (let c = 0; c < 5; c++) if (c !== i && c !== j) cards.push({ shows: [{ item: i, color: i }, { item: j, color: c }], answer: i });
+  }
+  for (let i = 0; i < 5; i++) for (let j = i + 1; j < 5; j++) {
+    const others = [0, 1, 2, 3, 4].filter(k => k !== i && k !== j);
+    for (const ci of others) for (const cj of others) if (ci !== cj) cards.push({ shows: [{ item: i, color: ci }, { item: j, color: cj }], answer: others.find(k => k !== ci && k !== cj) });
+  }
+  for (let i = cards.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [cards[i], cards[j]] = [cards[j], cards[i]]; }
+  return cards.slice(0, PRACTICE_CARDS).map(c => ({ answer: c.answer, shows: (Math.random() < 0.5 ? c.shows : c.shows.slice().reverse()).map(s => Object.assign({ rot: Math.round(Math.random() * 56 - 28), size: 86 + Math.round(Math.random() * 26) }, s)) }));
+}
+const P = { on: false };
+function openPractice() {
+  const st = H.st;
+  const t = theme((st && st.settings && st.settings.fifth && st.settings.fifth.theme) || undefined);
+  if (!t.items || t.items.length !== 5) return;
+  closePractice();
+  Object.assign(P, { on: true, t, deck: practiceDeck(), i: -1, right: 0, times: [], shownAt: 0, locked: true, timer: null });
+  const d = document.createElement('div');
+  d.id = 'fePractice';
+  d.className = 'fe-practice';
+  d.innerHTML = `<section class="fe">
+    <div class="fe-top"><div class="fe-title">Practice · ${esc(t.name)}</div><span class="fe-left" id="prCount"></span><button type="button" class="btn" id="prClose">Close</button></div>
+    <div class="fe-stage"><div class="fe-cardwrap" id="prCard"></div><div class="fe-msg" id="prMsg"></div></div>
+    <div class="fe-items">${t.items.map((it, i) => `<button type="button" class="fe-item live" data-pr="${i}" aria-label="${esc(it.name)}"><kbd>${i + 1}</kbd>${ico(it, it.color)}<span class="iname">${esc(it.name)}</span></button>`).join('')}</div>
+  </section>`;
+  document.body.appendChild(d);
+  d.querySelector('#prClose').addEventListener('click', closePractice);
+  d.addEventListener('pointerdown', e => {
+    const b = e.target.closest('[data-pr]');
+    if (b && e.button <= 0) { e.preventDefault(); practicePick(Number(b.dataset.pr)); }
+    const again = e.target.closest('#prAgain');
+    if (again) openPractice();
+  });
+  nextPractice();
+}
+function closePractice() { clearTimeout(P.timer); P.on = false; const d = document.getElementById('fePractice'); if (d) d.remove(); }
+function nextPractice() {
+  P.i += 1;
+  const count = document.getElementById('prCount');
+  if (P.i >= P.deck.length) return practiceSummary();
+  if (count) count.textContent = `Card ${P.i + 1} of ${P.deck.length}`;
+  document.getElementById('prCard').innerHTML = '<div class="fe-card back"><span class="sigil">✦</span></div>';
+  document.getElementById('prMsg').innerHTML = P.i ? '&nbsp;' : 'Get ready…';
+  document.querySelectorAll('#fePractice .fe-item').forEach(b => b.classList.remove('wrong', 'answer'));
+  P.locked = true;
+  P.timer = setTimeout(() => {
+    const c = P.deck[P.i];
+    document.getElementById('prCard').innerHTML = `<div class="fe-card face">${c.shows.map(s =>
+      `<span class="slot">${ico(P.t.items[s.item], P.t.items[s.color].color, `transform:rotate(${s.rot}deg) scale(${s.size / 100})`)}</span>`).join('')}</div>`;
+    document.getElementById('prMsg').innerHTML = 'Grab it!';
+    P.shownAt = performance.now();
+    P.locked = false;
+  }, P.i ? 900 + Math.random() * 700 : 1500);
+}
+function practicePick(i) {
+  if (!P.on || P.locked) return;
+  P.locked = true;
+  const c = P.deck[P.i];
+  const ms = performance.now() - P.shownAt;
+  const btn = n => document.querySelector(`#fePractice [data-pr="${n}"]`);
+  if (i === c.answer) {
+    P.right += 1; P.times.push(ms);
+    btn(i).classList.add('answer');
+    document.getElementById('prMsg').innerHTML = `<span class="good">Right!</span><small>${(ms / 1000).toFixed(2)}s</small>`;
+  } else {
+    btn(i).classList.add('wrong'); btn(c.answer).classList.add('answer');
+    document.getElementById('prMsg').innerHTML = `<span class="bad">Not quite: it was the ${esc(P.t.items[c.answer].name)}.</span><small>${whyText(c)}</small>`;
+  }
+  P.timer = setTimeout(nextPractice, i === c.answer ? 700 : 2200);
+}
+/* Explain the answer after a mistake. */
+function whyText(c) {
+  const it = P.t.items;
+  const own = c.shows.find(s => s.item === s.color);
+  if (own) return esc(`The ${it[own.item].name.toLowerCase()} is in its own colour.`);
+  return esc(`Cross out the ${it[c.shows[0].item].name.toLowerCase()} and ${it[c.shows[1].item].name.toLowerCase()}, and the ${it[c.shows[0].color].colorName || 'colour'} and ${it[c.shows[1].color].colorName || 'colour'} items.`);
+}
+function practiceSummary() {
+  const avg = P.times.length ? P.times.reduce((a, b) => a + b, 0) / P.times.length / 1000 : 0;
+  const best = P.times.length ? Math.min(...P.times) / 1000 : 0;
+  document.getElementById('prCount').textContent = 'Done!';
+  document.getElementById('prCard').innerHTML = `<div class="fe-card back"><span class="sigil">${P.right}/${P.deck.length}</span></div>`;
+  document.getElementById('prMsg').innerHTML = `${P.right === P.deck.length ? '<span class="good">Perfect!</span>' : `${P.right} of ${P.deck.length} right`}<small>${P.times.length ? `Average ${avg.toFixed(2)}s · best ${best.toFixed(2)}s` : ''}</small><span><button type="button" class="btn" id="prAgain" style="margin-top:8px">Practice again</button></span>`;
+}
+H.on('fe-practice', () => openPractice());
+document.addEventListener('keydown', e => {
+  if (!P.on || e.repeat || e.ctrlKey || e.metaKey || e.altKey) return;
+  if (e.key === 'Escape') return closePractice();
+  const n = Number(e.key);
+  if (n >= 1 && n <= 5) { e.preventDefault(); practicePick(n - 1); }
+});
 
 Hub.registerGame('fifth', {
   title: 'The Fifth Element',
