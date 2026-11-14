@@ -1,0 +1,35 @@
+{
+  "name": "Music",
+  "items": [
+    {
+      "name": "Guitar",
+      "file": "guitar.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    },
+    {
+      "name": "Drum",
+      "file": "drum.svg",
+      "color": "#2F7BEB",
+      "colorName": "blue"
+    },
+    {
+      "name": "Piano",
+      "file": "piano.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Music note",
+      "file": "music-note.svg",
+      "color": "#9B5DE5",
+      "colorName": "purple"
+    },
+    {
+      "name": "Trumpet",
+      "file": "trumpet.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    }
+  ]
+}

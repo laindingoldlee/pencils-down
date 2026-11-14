@@ -1,0 +1,35 @@
+{
+  "name": "Dinosaurs",
+  "items": [
+    {
+      "name": "T. rex",
+      "file": "t-rex.svg",
+      "color": "#E8402F",
+      "colorName": "red"
+    },
+    {
+      "name": "Triceratops",
+      "file": "triceratops.svg",
+      "color": "#2F7BEB",
+      "colorName": "blue"
+    },
+    {
+      "name": "Stegosaurus",
+      "file": "stegosaurus.svg",
+      "color": "#2EAF4E",
+      "colorName": "green"
+    },
+    {
+      "name": "Fossil",
+      "file": "fossil.svg",
+      "color": "#F4F1E6",
+      "colorName": "white"
+    },
+    {
+      "name": "Dinosaur egg",
+      "file": "dinosaur-egg.svg",
+      "color": "#F6C619",
+      "colorName": "yellow"
+    }
+  ]
+}
