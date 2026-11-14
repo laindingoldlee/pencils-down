@@ -89,6 +89,16 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .crowd{list-style:none;margin:0;padding:18px 20px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:18px 10px}
 .crowd li{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;text-align:center}
 .crowd .nm{font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 24px;padding:12px 20px 18px}
+@media (max-width:620px){.board{grid-template-columns:minmax(0,1fr);padding-inline:16px}}
+.tally,.recent{list-style:none;margin:0;padding:0}
+.tally li{display:grid;grid-template-columns:2rem auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.tally .place{font-family:var(--font-display);color:var(--ink-soft);text-align:center}
+.tally li:first-child .place{background:var(--mark);color:var(--on-mark);border-radius:6px}
+.tally .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tally .wins{font-family:var(--font-display);color:var(--brand)}
+.recent li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.recent li span{color:var(--ink-soft);text-align:right}
 .avbtn{position:relative;border:0;background:none;padding:0;border-radius:50%}
 .avbtn .pen{position:absolute;right:-4px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:1.5px solid var(--line-strong);display:grid;place-items:center;font-size:.75rem;color:var(--ink)}
 .dlg{position:fixed;inset:0;z-index:50;background:var(--scrim);display:grid;place-items:center;padding:16px}

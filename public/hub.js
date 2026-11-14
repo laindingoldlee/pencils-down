@@ -282,6 +282,32 @@ function noticeMyMove() {
   S.lastMove = msg;
 }
 
+/* ---------- tonight's results: wins per player, and the latest games ---------- */
+function scoreboard(st) {
+  const wins = st.wins || [];
+  if (!wins.length) return '';
+  const nameNow = x => (player(x.pid) || {}).name || x.name;
+  const tally = new Map();
+  for (const w of wins) for (const x of w.winners) {
+    const t = tally.get(x.pid) || { pid: x.pid, n: 0 };
+    t.n++; t.name = nameNow(x);
+    tally.set(x.pid, t);
+  }
+  const rows = [...tally.values()].sort((a, b) => b.n - a.n);
+  let place = 0, prev = null;
+  const recent = wins.slice(-8).reverse();
+  return `<section class="panel">
+    <header class="panel-head"><h2>Tonight’s scoreboard</h2><span class="muted">${wins.length} game${wins.length === 1 ? '' : 's'} played</span></header>
+    <div class="board">
+      <ol class="tally">${rows.map((r, i) => {
+        if (r.n !== prev) { place = i + 1; prev = r.n; }
+        return `<li><span class="place">${place}</span>${player(r.pid) ? avatar(r.pid, 30) : '<span></span>'}<span class="nm">${esc(r.name)}</span><span class="wins">${r.n} win${r.n === 1 ? '' : 's'}</span></li>`;
+      }).join('')}</ol>
+      <ul class="recent">${recent.map(w => `<li><b>${esc(w.name)}</b><span>${w.winners.length ? esc(w.winners.map(nameNow).join(' & ')) : 'no winner'}</span></li>`).join('')}</ul>
+    </div>
+  </section>`;
+}
+
 /* ---------- the host's settings, remembered for the next room they start ---------- */
 const savedPrefs = () => { try { return JSON.parse(store.get('gn.prefs') || 'null'); } catch (e) { return null; } };
 function rememberSettings() {
@@ -370,6 +396,7 @@ function renderRoom(main, st) {
         <figure class="qr"><img src="/qr/${esc(st.code)}.svg" alt="QR code for the invite link" width="132" height="132"><figcaption>Scan to join</figcaption></figure>
       </div>
     </section>
+    ${scoreboard(st)}
     <section class="panel">
       <header class="panel-head"><h2>In the room</h2><span class="muted">Tap an emote below to react</span></header>
       <ul class="crowd">${crowd}</ul>
