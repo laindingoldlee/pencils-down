@@ -10,7 +10,8 @@
  * On your turn you draw a tile, then point at someone's hidden tile and name it.
  * They answer Yes or No. A No may be a lie. The guesser then accepts the No (a chip goes
  * into the Liar's Pot) or calls the bluff (the server checks; whoever was wrong flips as
- * many of their tiles as there are chips in the pot). Right guesses let you draw and guess
+ * many of their tiles as there are chips in the defender's pile). Each player has their own
+ * pile: one chip for every No of theirs that was accepted, up to a cap, starting at 0. Right guesses let you draw and guess
  * again; wrong ones flip the tile you just drew. Once every tile in your row is flipped,
  * you're out. Last one standing wins.
  */
@@ -29,9 +30,11 @@ const pickRandom = a => a[crypto.randomInt(a.length)];
 const recommendedColors = players => Math.min(COLORS.length, Math.max(2, Math.ceil(players / 2)));
 
 /* ---------- settings ---------- */
-const defaults = () => ({ colors: 0, wilds: false }); // colors 0 = use the recommendation
+const defaults = () => ({ colors: 0, wilds: false, potCap: 3 }); // colors 0 = use the recommendation
 function cleanSettings(p, base) {
-  const s = { colors: base.colors, wilds: base.wilds };
+  const s = { colors: base.colors, wilds: base.wilds, potCap: base.potCap === undefined ? 3 : base.potCap };
+  const cap = Number(p.potCap);
+  if (p.potCap !== undefined && Number.isInteger(cap) && cap >= 1 && cap <= 10) s.potCap = cap;
   const c = Number(p.colors);
   if (Number.isInteger(c) && (c === 0 || (c >= 2 && c <= COLORS.length))) s.colors = c;
   if (typeof p.wilds === 'boolean') s.wilds = p.wilds;
@@ -64,7 +67,7 @@ function start(ctx, settings) {
     id: 'bw11', ctx, colors, wilds: !!settings.wilds,
     pool: [], hands: {}, pending: {}, order: players.slice(), dead: [], winner: null,
     phase: 'setup', setupEnds: Date.now() + SETUP_MS,
-    turn: null, pot: 1, log: [], nextId: 1,
+    turn: null, pots: {}, potCap: settings.potCap || 3, log: [], nextId: 1,
     killsBy: {}, liesCaught: 0, liesAway: 0, timer: null, awayTimer: null
   };
   for (let c = 0; c < colors; c++) {
@@ -324,14 +327,16 @@ function verdict(g, call) {
   const base = { k: 'guess', pid: t.pid, target: defender, c: gu.c, idx: gu.idx, value: gu.value };
   if (!call) {
     if (gu.lie) g.liesAway += 1;
-    g.pot += 1;
-    log(g, Object.assign(base, { res: 'accept', pot: g.pot }));
+    // The defender's own pile grows: one chip per accepted No, up to the cap.
+    g.pots[defender] = Math.min(g.potCap, (g.pots[defender] || 0) + 1);
+    log(g, Object.assign(base, { res: 'accept', pot: g.pots[defender] }));
     penalty(g, defender);
     nextTurn(g);
     return { ok: true };
   }
-  const stake = g.pot;
-  g.pot = 1;
+  // Calling the bluff puts the defender's pile at stake; it empties either way.
+  const stake = g.pots[defender] || 0;
+  g.pots[defender] = 0;
   g.bluffing = true; // knock-outs from here on were caused by a called bluff
   try {
   if (gu.lie) {
@@ -384,7 +389,7 @@ function view(g, viewer) {
   return {
     id: 'bw11', colors: g.colors, colorNames: COLORS.slice(0, g.colors), wilds: g.wilds,
     phase: g.phase, setupEnds: g.setupEnds, order: g.order, dead: g.dead, winner: g.winner,
-    pool: counts, poolLeft: g.pool.length, pot: g.pot,
+    pool: counts, poolLeft: g.pool.length, pots: g.pots, potCap: g.potCap,
     hands, mine, turn, log: g.log.slice(-30), killsBy: g.killsBy,
     lies: over ? { caught: g.liesCaught, away: g.liesAway } : null,
     setupDone: g.phase === 'setup' ? g.order.filter(pid => setupDone(g, pid)) : null
