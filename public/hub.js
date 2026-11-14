@@ -305,11 +305,14 @@ function renderRoom(main, st) {
     main.innerHTML = `
     <section class="panel">
       ${st.pencils ? `<div class="banner"><strong>Pencils Down is open.</strong><a class="btn primary" href="/pencils-down/${esc(st.code)}">Go to Pencils Down</a>${host ? '<span class="muted">Or pick another game below to bring everyone back.</span>' : ''}</div>` : ''}
-      <header class="panel-head">
-        <div><div class="eyebrow">Room code</div><div class="code">${esc(st.code)}</div></div>
-        <button type="button" class="btn" data-act="copy">Copy invite link</button>
-      </header>
-      <div class="linkline" style="padding-top:14px"><code id="inviteLink">${esc(link)}</code></div>
+      <div class="invitebox">
+        <div class="invitetext">
+          <div class="eyebrow">Room code</div><div class="code">${esc(st.code)}</div>
+          <code id="inviteLink">${esc(link)}</code>
+          <div><button type="button" class="btn" data-act="copy">Copy invite link</button></div>
+        </div>
+        <figure class="qr"><img src="/qr/${esc(st.code)}.svg" alt="QR code for the invite link" width="132" height="132"><figcaption>Scan to join</figcaption></figure>
+      </div>
     </section>
     <section class="panel">
       <header class="panel-head"><h2>In the room</h2><span class="muted">Tap an emote below to react</span></header>

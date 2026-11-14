@@ -279,5 +279,6 @@ module.exports = {
   id: 'fifth', name: 'The Fifth Element', minPlayers: 2,
   THEMES, DECK_SIZES, defaults, cleanSettings,
   start, stop, pick, view, playersChanged, playerJoined,
+  result: g => (g.phase === 'final' ? (g.winner ? [g.winner] : []) : null),
   allCards // for tests
 };

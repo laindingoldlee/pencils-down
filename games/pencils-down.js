@@ -245,6 +245,16 @@ function endRound(room, reason, pid) {
   }), COLLECT_MS);
 }
 
+/* Tell the party room who won, for its scoreboard (only games opened from a party room). */
+function reportFinal(room) {
+  if (!room.party || !opts.onFinal || !room.history.length) return;
+  const tot = totals(room);
+  const ids = Object.keys(tot);
+  if (!ids.length) return;
+  const top = Math.max(...ids.map(id => tot[id]));
+  try { opts.onFinal(room.party, ids.filter(id => tot[id] === top), room.names); } catch (e) { console.error('Scoreboard:', e); }
+}
+
 function advance(room) {
   cancelAdvance(room);
   if (room.phase !== 'review') return;
@@ -252,6 +262,7 @@ function advance(room) {
   if (room.round >= room.settings.rounds) {
     clearTimer(room);
     room.phase = 'final';
+    reportFinal(room);
     broadcast(room);
   } else {
     startRound(room, room.round + 1);
@@ -550,6 +561,7 @@ nsp.on('connection', socket => {
     clearTimer(c.room);
     cancelAdvance(c.room);
     c.room.phase = 'final';
+    reportFinal(c.room);
     broadcast(c.room);
     reply({ ok: true });
   });
@@ -579,6 +591,16 @@ nsp.on('connection', socket => {
     broadcast(c.room);
     reply({ ok: true });
   });
+
+  // Emotes, the same ones as in the party room.
+  on('emote', (p, reply) => {
+    const c = ctx();
+    const t = Date.now();
+    if (!c || !(opts.emotes || []).includes(p.id) || t - (socket.data.emoteAt || 0) < 600) return reply({ ok: false });
+    socket.data.emoteAt = t;
+    nsp.to(c.room.code).emit('emote', { pid: c.me.pid, id: p.id });
+    reply({ ok: true });
+  }, { noResync: true });
 
   on('leave', (p, reply) => {
     const c = ctx();

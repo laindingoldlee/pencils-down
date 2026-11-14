@@ -342,5 +342,6 @@ module.exports = {
   id: 'spell', name: 'Spellbound Mayhem', minPlayers: 2,
   defaults, cleanSettings, canStart,
   start, stop, pick, view, playersChanged, playerJoined,
+  result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _startRound: startRound, _finishSpin: finishSpin // for tests
 };

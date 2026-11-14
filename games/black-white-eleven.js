@@ -395,5 +395,6 @@ module.exports = {
   id: 'bw11', name: 'Black, White & Eleven', minPlayers: 2,
   COLORS, recommendedColors, defaults, cleanSettings,
   start, stop, pick, view, playersChanged, playerJoined,
+  result: g => (g.phase === 'over' ? (g.winner ? [g.winner] : []) : null),
   slotsFor // for tests
 };

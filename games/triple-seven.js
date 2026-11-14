@@ -401,5 +401,6 @@ module.exports = {
   id: 't7', name: 'The Triple Seven', minPlayers: 2,
   POWER_RANKS, defaults, cleanSettings, canStart,
   start, stop, pick, view, playersChanged, playerJoined,
+  result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _startRound: startRound, value // for tests
 };
