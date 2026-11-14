@@ -30,13 +30,18 @@ function settings(st) {
       <button type="button" data-act="bw-wilds" data-k="1" aria-pressed="${!!s.wilds}" ${host ? '' : 'disabled'}>On</button></div></div>
   <div class="setting"><span class="label" id="bwCapLbl">Most chips in a player’s pile<br><small class="muted" style="font-weight:400">The most tiles a called bluff can cost on top of the guessed one</small></span>
     <div class="seg" role="group" aria-labelledby="bwCapLbl">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-act="bw-cap" data-k="${n}" aria-pressed="${(s.potCap || 3) === n}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div></div>
-  <div class="setting stack"><span class="label">How to play</span>${rulesList(s.wilds)}</div>`;
+  <div class="setting"><span class="label" id="bwStartLbl">Starting tiles<br><small class="muted" style="font-weight:400">How many tiles each player picks at the start</small></span>
+    <div class="seg" role="group" aria-labelledby="bwStartLbl">${[1, 2, 3, 4, 5, 6].map(n => `<button type="button" data-act="bw-set" data-k="startTiles|${n}" aria-pressed="${(s.startTiles || 3) === n}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div></div>
+  <div class="setting"><span class="label" id="bwAnsLbl">Time to answer a guess<br><small class="muted" style="font-weight:400">After that the game answers truthfully for them</small></span>
+    <div class="seg" role="group" aria-labelledby="bwAnsLbl">${[15, 20, 30, 45, 60].map(n => `<button type="button" data-act="bw-set" data-k="answer|${n}" aria-pressed="${(s.answer || 30) === n}" ${host ? '' : 'disabled'}>${n}s</button>`).join('')}</div></div>
+  <div class="setting stack"><span class="label">How to play</span>${rulesList(s.wilds, s.startTiles || 3)}</div>`;
 }
-function rulesList(wilds) {
+function rulesList(wilds, start) {
+  start = start || 3;
   return `<ul class="rules">
     <li>Tiles are numbered 0 to 11. Everyone sees the color of every tile, but only you see your own numbers.</li>
     <li>Each row runs from smallest to largest. For the same number: black &lt; white &lt; blue &lt; red &lt; green &lt; yellow.</li>
-    <li>Start by picking the colors of your 3 tiles. On your turn, draw a tile (pick its color), then point at someone’s hidden tile and name its number${wilds ? ', or call it the wildcard' : ''}.</li>
+    <li>Start by picking the colors of your ${start} tile${start === 1 ? '' : 's'}. On your turn, draw a tile (pick its color), then point at someone’s hidden tile and name its number${wilds ? ', or call it the wildcard' : ''}.</li>
     <li>They answer Yes or No, and they may lie with a No. Accept it, and a chip goes on <b>their pile</b> (everyone starts at 0). Or call the bluff and their pile is at stake: if they lied, they flip the tile plus one more per chip; if they told the truth, you flip your drawn tile plus one per chip. Either way their pile goes back to 0.</li>
     <li>Right: the tile is flipped, and you can draw again and keep guessing, or stop. Wrong: flip the tile you just drew.</li>
     ${wilds ? '<li>A wildcard goes wherever you put it, once, and stays there. To flip it, someone has to guess “wild”.</li>' : ''}
@@ -44,6 +49,7 @@ function rulesList(wilds) {
   </ul>`;
 }
 H.on('bw-colors', (b, k) => { H.st.settings.bw11.colors = Number(k); H.render(); H.emit('settings', { game: 'bw11', patch: { colors: Number(k) } }); });
+H.on('bw-set', (b, k) => { const [key, v] = k.split('|'); H.st.settings.bw11[key] = Number(v); H.render(); H.emit('settings', { game: 'bw11', patch: { [key]: Number(v) } }); });
 H.on('bw-cap', (b, k) => { H.st.settings.bw11.potCap = Number(k); H.render(); H.emit('settings', { game: 'bw11', patch: { potCap: Number(k) } }); });
 H.on('bw-wilds', (b, k) => { H.st.settings.bw11.wilds = k === '1'; H.render(); H.emit('settings', { game: 'bw11', patch: { wilds: k === '1' } }); });
 
@@ -120,7 +126,7 @@ function render(main, st) {
   if (L.sel && (!g.hands[L.sel.pid] || !g.hands[L.sel.pid].some(x => x.id === L.sel.id && !x.up))) L.sel = null;
 
   const canPickTiles = myTurn && t.step === 'guess';
-  const drawLive = (g.phase === 'setup' && playing && !g.mine && (g.hands[me] || []).length < 3) || (myTurn && t.step === 'draw');
+  const drawLive = (g.phase === 'setup' && playing && !g.mine && (g.hands[me] || []).length < (g.startTiles || 3)) || (myTurn && t.step === 'draw');
   const pile = g.pool.map((n, c) => `<button type="button" class="pilebtn${drawLive ? ' live' : ''}" data-act="bw-draw" data-k="${c}" ${drawLive && n ? '' : 'disabled'} aria-label="Draw a ${COLOR_NAMES[c]} tile (${n} left)"><span class="tile c${c} back"></span>${n}</button>`).join('');
   const pot = pid => (g.pots && g.pots[pid]) || 0;
   const chipsOf = pid => `<span class="seatpot" title="Unchallenged Nos: ${pot(pid)} of ${g.potCap}"><span class="chips">${Array.from({ length: pot(pid) }, () => '<span class="chip"></span>').join('')}</span>${pot(pid)}</span>`;
@@ -144,7 +150,7 @@ function render(main, st) {
       <div class="bw-top"><div class="bw-title">Black, White &amp; Eleven</div>
         <span class="bw-legend" title="Order for the same number">${legend}</span>
         ${H.dd('bw-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 'bw-log')}
-        ${H.dd('bw-rules', 'How to play', rulesList(g.wilds), 'bw-rules')}
+        ${H.dd('bw-rules', 'How to play', rulesList(g.wilds, g.startTiles), 'bw-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
       <div class="bw-table">
         <div class="pothelp" title="Each player’s chips sit by their name">🪙 Chips sit by each player’s name · most ${g.potCap}</div>
@@ -194,7 +200,8 @@ function actionHTML(g, st) {
     const left = Math.max(0, Math.ceil((g.setupEnds - H.now()) / 1000));
     if (!playing) return `<div class="bw-act"><h3>Everyone’s picking their starting tiles…</h3></div>`;
     if (g.mine) return `<div class="bw-act"><h3>You drew a ${g.mine.pending.n === -1 ? 'wildcard' : 'tile'}: ${tileHTML(g, me, Object.assign({ id: -1, up: false }, g.mine.pending), { mine: true })}</h3><p>Tap a <b>+</b> in your row to choose where it goes. ${g.mine.pending.n === -1 ? 'It stays there for the rest of the game.' : ''}</p></div>`;
-    if (mine.length < 3) return `<div class="bw-act"><h3>Pick the colors of your 3 starting tiles</h3><p>Tap a color above, ${3 - mine.length} more to go. You only see the number once it’s yours. <span class="muted" id="bwLeft">(${left}s)</span></p></div>`;
+    const need = g.startTiles || 3;
+    if (mine.length < need) return `<div class="bw-act"><h3>Pick the colors of your ${need} starting tile${need === 1 ? '' : 's'}</h3><p>Tap a color above, ${need - mine.length} more to go. You only see the number once it’s yours. <span class="muted" id="bwLeft">(${left}s)</span></p></div>`;
     return `<div class="bw-act"><h3>You’re ready.</h3><p class="muted">Waiting for everyone else to pick… <span id="bwLeft">(${left}s)</span></p></div>`;
   }
   if (!t) return '';
@@ -225,7 +232,7 @@ function actionHTML(g, st) {
   if (t.step === 'answer') {
     const gu = t.guess;
     const left = Math.max(0, t.answerEnds - H.now());
-    const bar = `<div class="timerbar"><span style="width:${(left / 30000 * 100).toFixed(1)}%"></span></div>`;
+    const bar = `<div class="timerbar"><span style="width:${(left / (g.answerMs || 30000) * 100).toFixed(1)}%"></span></div>`;
     if (gu.target === me) {
       return `<div class="bw-act"><p class="bigq">${turnName} says your ${tileName(g, me, gu.id)} is <b>${esc(valName(gu.value))}</b>.</p>
         ${gu.right
@@ -363,7 +370,7 @@ Hub.registerGame('bw11', {
     if (!g) return;
     if (g.phase === 'setup' || (g.turn && g.turn.step === 'answer')) {
       const bar = document.querySelector('.bw .timerbar span');
-      if (g.turn && g.turn.step === 'answer' && bar) bar.style.width = (Math.max(0, g.turn.answerEnds - H.now()) / 30000 * 100).toFixed(1) + '%';
+      if (g.turn && g.turn.step === 'answer' && bar) bar.style.width = (Math.max(0, g.turn.answerEnds - H.now()) / (g.answerMs || 30000) * 100).toFixed(1) + '%';
     }
     if (g.phase === 'setup') H.setText('bwLeft', '(' + Math.max(0, Math.ceil((g.setupEnds - H.now()) / 1000)) + 's)');
   }

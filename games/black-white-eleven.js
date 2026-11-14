@@ -18,8 +18,6 @@
 const crypto = require('crypto');
 
 const COLORS = ['black', 'white', 'blue', 'red', 'green', 'yellow'];
-const START_TILES = 3;
-const ANSWER_MS = 30000;       // a defender who doesn't answer in time answers truthfully
 const AWAY_SKIP_MS = 20000;    // a disconnected player's turn is skipped after this long
 const SETUP_MS = 60000;        // anyone who hasn't taken their starting tiles by then gets them dealt
 
@@ -30,9 +28,23 @@ const pickRandom = a => a[crypto.randomInt(a.length)];
 const recommendedColors = players => Math.min(COLORS.length, Math.max(2, Math.ceil(players / 2)));
 
 /* ---------- settings ---------- */
-const defaults = () => ({ colors: 0, wilds: false, potCap: 3 }); // colors 0 = use the recommendation
+/* Enough tiles for everyone's starting row, with some left to draw? */
+function canStart(s, players) {
+  const colors = s.colors || recommendedColors(players);
+  const total = colors * (12 + (s.wilds ? 1 : 0));
+  const need = players * (s.startTiles || 3);
+  if (need >= total) return `Not enough tiles: ${players} players × ${s.startTiles || 3} starting tiles needs more than the ${total} tiles in ${colors} colors. Add a color or start with fewer tiles.`;
+  return null;
+}
+// colors 0 = use the recommendation; answer = seconds a player has to answer a guess (then the game answers truthfully)
+const defaults = () => ({ colors: 0, wilds: false, potCap: 3, startTiles: 3, answer: 30 });
 function cleanSettings(p, base) {
-  const s = { colors: base.colors, wilds: base.wilds, potCap: base.potCap === undefined ? 3 : base.potCap };
+  const s = { colors: base.colors, wilds: base.wilds, potCap: base.potCap === undefined ? 3 : base.potCap,
+    startTiles: base.startTiles || 3, answer: base.answer || 30 };
+  const st = Number(p.startTiles);
+  if (p.startTiles !== undefined && Number.isInteger(st) && st >= 1 && st <= 6) s.startTiles = st;
+  const an = Number(p.answer);
+  if (p.answer !== undefined && [15, 20, 30, 45, 60].includes(an)) s.answer = an;
   const cap = Number(p.potCap);
   if (p.potCap !== undefined && Number.isInteger(cap) && cap >= 1 && cap <= 10) s.potCap = cap;
   const c = Number(p.colors);
@@ -63,9 +75,11 @@ function slotsFor(g, row, t) {
 function start(ctx, settings) {
   const players = ctx.onlineIds();
   const colors = settings.colors || recommendedColors(players.length);
+  const startTiles = settings.startTiles || 3, answerMs = (settings.answer || 30) * 1000;
   const g = {
     id: 'bw11', ctx, colors, wilds: !!settings.wilds,
     pool: [], hands: {}, pending: {}, order: players.slice(), dead: [], winner: null,
+    startTiles, answerMs,
     phase: 'setup', setupEnds: Date.now() + SETUP_MS,
     turn: null, pots: {}, potCap: settings.potCap || 3, log: [], nextId: 1,
     killsBy: {}, liesCaught: 0, liesAway: 0, timer: null, awayTimer: null
@@ -108,14 +122,14 @@ function placeOrAsk(g, pid, t) {
 }
 
 /* --- setup: everyone picks the colors of their starting tiles --- */
-function setupDone(g, pid) { return g.hands[pid].length >= START_TILES && !g.pending[pid]; }
+function setupDone(g, pid) { return g.hands[pid].length >= g.startTiles && !g.pending[pid]; }
 function finishSetup(g, force) {
   if (g.phase !== 'setup') return;
   if (force) {
     for (const pid of g.order) {
       const row = g.hands[pid];
       if (g.pending[pid]) { const t = g.pending[pid]; row.splice(slotsFor(g, row, t).from, 0, t); g.pending[pid] = null; }
-      while (row.length < START_TILES && g.pool.length) {
+      while (row.length < g.startTiles && g.pool.length) {
         const t = takeFromPool(g, pickRandom([...new Set(g.pool.map(x => x.c))]));
         row.splice(slotsFor(g, row, t).from, 0, t);
       }
@@ -256,8 +270,8 @@ function pick(g, pid, p) {
     if (!(Number.isInteger(value) && value >= -1 && value <= 11) || (value === -1 && !g.wilds)) return { ok: false };
     t.guess = { target, id: tile.id, idx: g.hands[target].indexOf(tile), c: tile.c, value, right: tile.n === value };
     t.step = 'answer';
-    t.answerEnds = Date.now() + ANSWER_MS;
-    g.timer = setTimeout(safe(() => { if (g.turn === t && t.step === 'answer') answer(g, target, { yes: t.guess.right }); }), ANSWER_MS);
+    t.answerEnds = Date.now() + g.answerMs;
+    g.timer = setTimeout(safe(() => { if (g.turn === t && t.step === 'answer') answer(g, target, { yes: t.guess.right }); }), g.answerMs);
     watchAway(g);
     g.ctx.broadcast();
     return { ok: true };
@@ -291,7 +305,7 @@ function setupMove(g, pid, p) {
   if (p.a === 'place') {
     if (!placePending(g, pid, p.slot)) return { ok: false };
   } else if (p.a === 'draw') {
-    if (g.pending[pid] || g.hands[pid].length >= START_TILES) return { ok: false };
+    if (g.pending[pid] || g.hands[pid].length >= g.startTiles) return { ok: false };
     const tile = takeFromPool(g, Number(p.color));
     if (!tile) return { ok: false, error: 'There are no tiles of that color left.' };
     placeOrAsk(g, pid, tile);
@@ -387,7 +401,7 @@ function view(g, viewer) {
     }
   }
   return {
-    id: 'bw11', colors: g.colors, colorNames: COLORS.slice(0, g.colors), wilds: g.wilds,
+    id: 'bw11', colors: g.colors, startTiles: g.startTiles, answerMs: g.answerMs, colorNames: COLORS.slice(0, g.colors), wilds: g.wilds,
     phase: g.phase, setupEnds: g.setupEnds, order: g.order, dead: g.dead, winner: g.winner,
     pool: counts, poolLeft: g.pool.length, pots: g.pots, potCap: g.potCap,
     hands, mine, turn, log: g.log.slice(-30), killsBy: g.killsBy,
@@ -398,7 +412,7 @@ function view(g, viewer) {
 
 module.exports = {
   id: 'bw11', name: 'Black, White & Eleven', minPlayers: 2,
-  COLORS, recommendedColors, defaults, cleanSettings,
+  COLORS, recommendedColors, defaults, cleanSettings, canStart,
   start, stop, pick, view, playersChanged, playerJoined,
   result: g => (g.phase === 'over' ? (g.winner ? [g.winner] : []) : null),
   slotsFor // for tests
