@@ -153,6 +153,29 @@ function renderEmoteBar() {
   const first = S.catalog.emotes[0];
   $('emoteToggle').innerHTML = `${first ? emoteFace(first) : ''}<span>Emotes</span>`;
 }
+/* Hovering an emote in the bar shows it large, with its name, until the mouse moves away. */
+function showPreview(b) {
+  const e = S.catalog.emotes.find(x => x.id === b.dataset.k);
+  if (!e || !e.src) return;
+  let p = $('emotePreview');
+  if (!p) { p = document.createElement('div'); p.id = 'emotePreview'; p.className = 'emotepreview'; p.setAttribute('aria-hidden', 'true'); document.body.appendChild(p); }
+  p.innerHTML = `<img src="${esc(e.src)}" alt=""><span>${esc(e.label)}</span>`;
+  const r = b.getBoundingClientRect();
+  const half = 100;
+  p.style.left = Math.min(window.innerWidth - half - 8, Math.max(half + 8, r.left + r.width / 2)) + 'px';
+  p.style.bottom = (window.innerHeight - r.top + 8) + 'px';
+  p.hidden = false;
+}
+function hidePreview() { const p = $('emotePreview'); if (p) p.hidden = true; }
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return;
+  const b = e.target.closest && e.target.closest('#emoteIn button');
+  if (b) showPreview(b);
+});
+document.addEventListener('pointerout', e => {
+  const b = e.target.closest && e.target.closest('#emoteIn button');
+  if (b && !(e.relatedTarget && b.contains(e.relatedTarget))) hidePreview();
+});
 function closeEmotes() {
   clearTimeout(S.emoteCloseT);
   $('emotebar').classList.remove('open');
@@ -184,7 +207,7 @@ function showEmote(pid, id) {
   if (els.length) {
     const r = els[0].getBoundingClientRect();
     // sit just above the avatar, bottom edge on its top
-    const h = window.innerWidth < 620 ? 104 : 132;
+    const h = window.innerWidth < 620 ? 140 : 190;
     x = r.left + r.width / 2; y = r.top - h + 10;
   } else {
     x = window.innerWidth / 2; y = window.innerHeight / 2;

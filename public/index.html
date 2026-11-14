@@ -149,7 +149,7 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .emotebar .elbl{display:none}
 .emotebar .in button::after{content:attr(data-label);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:2;
   background:var(--ink);color:var(--panel);font:700 .8rem var(--font-body);padding:4px 9px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .1s}
-.emotebar .in button:hover::after,.emotebar .in button:focus-visible::after{opacity:1}
+.emotebar .in button:focus-visible::after{opacity:1}
 /* game screens on a computer fill the window (see fitGame in hub.js) */
 body.fitmode .shell{padding-bottom:0}
 .fitted{margin-bottom:0!important;overflow:hidden}
@@ -163,8 +163,13 @@ body.fitmode .shell{padding-bottom:0}
 .dd > .ddbody ol,.dd > .ddbody ul{margin:0;max-height:none}
 .dd > .ddbody ul + ul{margin-top:8px}
 .emotebar .etoggle{display:none}
-.floatemote:has(img){width:132px;height:132px;margin-left:-66px}
-@media (max-width:620px){.floatemote:has(img){width:104px;height:104px;margin-left:-52px}}
+.floatemote:has(img){width:190px;height:190px;margin-left:-95px}
+@media (max-width:620px){.floatemote:has(img){width:140px;height:140px;margin-left:-70px}}
+/* hovering an emote in the bar shows it large until the mouse moves away */
+.emotepreview{position:fixed;z-index:35;pointer-events:none;display:grid;justify-items:center;gap:4px;transform:translateX(-50%);
+  background:var(--panel);border:1px solid var(--line-strong);border-radius:16px;padding:10px 12px 8px;box-shadow:var(--shadow)}
+.emotepreview img{width:170px;height:170px;object-fit:contain;display:block}
+.emotepreview span{font-weight:700;font-size:.95rem}
 /* phones: a button opens all the emotes in a grid above the bar */
 @media (max-width:760px){
   .emotebar{flex-direction:column;align-items:stretch;gap:6px}
