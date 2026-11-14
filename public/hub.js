@@ -286,7 +286,9 @@ function renderRoom(main, st) {
   const crowd = st.players.map(p => {
     const kick = host && p.pid !== st.you
       ? `<button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
-    return `<li>${avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${p.pid === st.you ? 'you' : (p.connected ? '' : 'away')}${kick}</span></li>`;
+    const promote = host && p.pid !== st.you && p.connected
+      ? `<button type="button" class="linkbtn${armed('make-host', p.pid) ? ' armed' : ''}" data-act="make-host" data-k="${esc(p.pid)}">${armed('make-host', p.pid) ? 'make host?' : 'make host'}</button>` : '';
+    return `<li>${avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${p.pid === st.you ? 'you' : (p.connected ? '' : 'away')}${promote}${kick}</span></li>`;
   }).join('');
   const cards = GAME_LIST.map(g => `<button type="button" class="gcard" data-act="select" data-k="${g.id}" aria-pressed="${st.selected === g.id}" ${g.ready && host ? '' : 'disabled'}>
       <span class="tag">${g.ready ? esc(g.players) : 'Coming soon'}</span><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p></button>`).join('');
@@ -349,6 +351,7 @@ document.addEventListener('click', async e => {
       if (!r.ok) { b.disabled = false; if (r.error) toast(r.error); }
       break;
     }
+    case 'make-host': if (armed('make-host', k)) { S.arm = null; emit('makeHost', { pid: k }); } else arm('make-host', k); break;
     case 'kick': if (armed('kick', k)) { S.arm = null; emit('kick', { pid: k }); } else arm('kick', k); break;
     case 'toRoom': if (armed('toRoom')) { S.arm = null; emit('toRoom'); } else arm('toRoom'); break;
     case 'toRoomNow': b.disabled = true; emit('toRoom'); break;
