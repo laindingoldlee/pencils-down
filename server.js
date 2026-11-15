@@ -22,12 +22,13 @@ const fifth = require('./games/fifth-element');
 const bw11 = require('./games/black-white-eleven');
 const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
+const ember = require('./games/ember-crown');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7 };                     // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -61,10 +62,25 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
+/* Pictures in a folder, by name without the extension (for The Ember Crown's card art). */
+function loadArt(dir, urlBase) {
+  const out = {};
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/^([a-z0-9-]+)\.(webp|png|jpe?g|svg|gif)$/i);
+      if (m && !out[m[1].toLowerCase()]) out[m[1].toLowerCase()] = urlBase + f;
+    }
+  } catch (e) { /* no art yet */ }
+  return out;
+}
 const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
-  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
+  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') },
+  ember: {
+    art: loadArt(path.join(PUBLIC, 'games', 'ember-crown', 'art'), '/games/ember-crown/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'ember-crown', 'sounds'), '/games/ember-crown/sounds/')
+  }
 };
 
 /* ---------- web server ---------- */
@@ -344,7 +360,7 @@ io.on('connection', socket => {
 
   on('again', (p, reply) => {
     const c = ctx();
-    if (!c || !c.isHost || !c.room.game || c.room.game.phase !== 'final') return reply({ ok: false });
+    if (!c || !c.isHost || !c.room.game || !['final', 'over'].includes(c.room.game.phase)) return reply({ ok: false });
     const id = c.room.game.id;
     endGame(c.room);
     c.room.game = GAMES[id].start(gameCtx(c.room), c.room.settings[id]);

@@ -1,0 +1,167 @@
+/* The Ember Crown: a dark hall lit by embers, with gold-edged Adventurer cards. */
+.ec{--felt:#1A0F0C;--felt-2:#33160F;--ink:#FFF1E2;--soft:#D8B9A4;--gold:#F4C35A;--ember:#FF7A2F;--bad:#FF8A80;--good:#8EF0B8;
+  background:radial-gradient(120% 90% at 50% 0%,var(--felt-2),var(--felt) 70%);color:var(--ink);border-radius:18px;box-shadow:var(--shadow);
+  padding:14px 16px 18px;display:flex;flex-direction:column;gap:14px;margin-bottom:16px}
+.ec *{min-width:0}
+.ec .muted{color:var(--soft)}
+.ec .good{color:var(--good)}
+.ec .bad{color:var(--bad)}
+.ec .linkbtn{color:var(--soft)}
+.ec .linkbtn.armed{color:var(--bad)}
+.ec .btn{border-color:var(--ink);color:var(--ink)}
+.ec .btn.primary{background:var(--gold);border-color:var(--gold);color:#2A1408}
+.ec .btn:disabled{opacity:.45}
+.ec h3{font-size:1.08rem;margin:0}
+.ec h4{font-size:.95rem;margin:0 0 4px;color:var(--gold)}
+.ec p{margin:0}
+.ec .row{display:flex;gap:10px 12px;flex-wrap:wrap;align-items:center}
+.ec-top{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap}
+.ec-title{font-family:var(--font-display);font-size:1.1rem;color:var(--gold);margin-right:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ec-title img{height:1.6em;width:auto}
+.ec-title small{font-family:var(--font-body);font-size:.85rem;color:var(--soft)}
+
+/* cards: 5:7, art fills the card, number badge top-left, name banner at the bottom */
+.ecc{--w:var(--cw,64px);width:var(--w);height:calc(var(--w)*1.4);border-radius:calc(var(--w)*.1);position:relative;flex:none;overflow:hidden;
+  box-shadow:0 0 0 2px #C9973F,0 4px 10px rgba(0,0,0,.45);display:grid;place-items:center;color:#fff;background:#3A2A22}
+.ecc img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.ecc .ico{font-size:calc(var(--w)*.46);line-height:1;filter:drop-shadow(0 2px 3px rgba(0,0,0,.5))}
+.ecc .num{position:absolute;top:calc(var(--w)*.05);left:calc(var(--w)*.05);min-width:calc(var(--w)*.3);height:calc(var(--w)*.3);border-radius:50%;
+  display:grid;place-items:center;background:rgba(20,8,4,.82);border:1.5px solid var(--gold);color:var(--gold);font-family:var(--font-display);font-size:calc(var(--w)*.18);line-height:1;padding:0 2px}
+.ecc .nm{position:absolute;left:0;right:0;bottom:0;background:linear-gradient(transparent,rgba(15,6,3,.9) 35%);padding:calc(var(--w)*.12) 3px calc(var(--w)*.05);
+  font-size:max(8px,calc(var(--w)*.13));font-weight:700;line-height:1.05;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ecc.n0{background:linear-gradient(160deg,#6C7A89,#2E3640)}
+.ecc.n1{background:linear-gradient(160deg,#8A5A35,#3D2412)}
+.ecc.n2{background:linear-gradient(160deg,#A83A2A,#4A140C)}
+.ecc.n3{background:linear-gradient(160deg,#4867A8,#1B2B52)}
+.ecc.n4{background:linear-gradient(160deg,#3B5E45,#14261A)}
+.ecc.n5{background:linear-gradient(160deg,#C2577E,#5A1D35)}
+.ecc.n6{background:linear-gradient(160deg,#55385F,#1E1022)}
+.ecc.n7{background:linear-gradient(160deg,#5C8C9C,#1C3740)}
+.ecc.n8{background:linear-gradient(160deg,#5E6B3A,#22280F)}
+.ecc.n9{background:linear-gradient(160deg,#2E9CC4,#0D3D5C)}
+.ecc.n10{background:radial-gradient(circle at 50% 40%,#FF9A3D,#8C1E0A 60%,#2A0703)}
+.ecc.back{background:radial-gradient(circle at 50% 45%,#7A2412,#3A0F08 60%,#1E0704);box-shadow:0 0 0 2px #C9973F,inset 0 0 0 calc(var(--w)*.06) #2A0A05,inset 0 0 0 calc(var(--w)*.08) #C9973F,0 4px 10px rgba(0,0,0,.45)}
+.ecc.back .emb{font-size:calc(var(--w)*.42);color:var(--ember);text-shadow:0 0 calc(var(--w)*.15) #FFB15A}
+.ecc.sm{--w:calc(var(--cw,64px)*.7)}
+.ecc.xs{--w:calc(var(--cw,64px)*.48)}
+.ecc.xs .nm{display:none}
+.ecc.sm .nm{display:none}
+.ecc.big{--w:96px}
+.ecc.pick{cursor:pointer;transform:translateY(-3px);box-shadow:0 0 0 3px #FFD27F,0 0 14px rgba(255,170,80,.6),0 6px 14px rgba(0,0,0,.5)}
+.ecc.pick:hover{transform:translateY(-7px)}
+.ecc.sel{transform:translateY(-9px);box-shadow:0 0 0 4px var(--ember),0 0 22px var(--ember)}
+
+/* the round table */
+.ec-round{position:relative;width:100%;aspect-ratio:16/9;min-height:500px;--cw:58px}
+.ec-felt{position:absolute;inset:14% 13%;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,#5A2A17,#331309 60%,#1C0904);background-size:cover;background-position:center;
+  box-shadow:0 0 0 10px #3B2414,0 0 0 13px #C9973F,0 0 0 15px #2A1408,inset 0 0 60px rgba(0,0,0,.6),0 0 60px rgba(255,110,40,.18),0 24px 44px rgba(0,0,0,.6)}
+.ec-felt::after{content:"♛";position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(4rem,14vw,9rem);color:rgba(255,160,70,.06);pointer-events:none}
+.eccenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:10px 18px;align-items:flex-end;justify-content:center;flex-wrap:wrap;max-width:46%;z-index:1}
+.ecpile{display:grid;justify-items:center;gap:4px}
+.ecpile small{color:var(--soft);font-size:.78rem}
+.ecrow{display:flex;gap:6px;flex-wrap:wrap;justify-content:center}
+.ecspot{position:absolute;transform:translate(-50%,-50%);z-index:1}
+.ecspot.mine{z-index:2;--cw:66px}
+.ec-round .ecspot.at-bottom{transform:translate(-50%,0)}
+.ec-round .ecspot.at-top{transform:translate(-50%,0)}
+.ecseat{background:rgba(20,8,4,.8);backdrop-filter:blur(2px);border:1.5px solid transparent;border-radius:14px;padding:6px 10px 8px;display:grid;gap:6px;width:max-content;max-width:min(360px,46vw)}
+.ecseat.turn{border-color:var(--gold);background:rgba(70,40,10,.88);box-shadow:0 0 18px rgba(244,195,90,.25)}
+.ecseat.out{opacity:.6}
+.ecseat.out .echead .nm{text-decoration:line-through}
+.echead{display:flex;align-items:center;gap:8px}
+.echead .nm{font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
+.echead .nm small{display:block;font-weight:400;color:var(--soft);font-size:.74rem}
+.echead .tally{margin-left:auto;font-family:var(--font-display);color:var(--gold);font-size:1.1rem;white-space:nowrap;display:grid;justify-items:end;line-height:1}
+.echead .tally small{font-family:var(--font-body);font-size:.62rem;color:var(--soft)}
+.echand{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding-top:6px}
+.ecplayed{display:flex;gap:4px;flex-wrap:wrap;justify-content:center;padding-top:2px;border-top:1px dashed rgba(216,185,164,.25)}
+
+/* acting */
+.ec{container-type:inline-size}
+.ec-main{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;align-items:start}
+@container (min-width:860px){ .ec-main{grid-template-columns:minmax(0,1fr) 320px} .ec-round{aspect-ratio:auto;height:max(500px,62vh)} }
+.ec-side{display:grid;gap:12px;align-content:start}
+.ec-act,.ec-know{background:rgba(0,0,0,.3);border-radius:14px;padding:14px 16px;display:grid;gap:10px}
+.ec-know ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.9rem}
+.ec-know h4{margin-top:4px}
+.ecopts{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px}
+.ecopt{background:rgba(255,255,255,.04);border:1px solid rgba(216,185,164,.18);border-radius:12px;padding:10px 12px;display:grid;gap:8px;align-content:start}
+.ecpicked{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.ecpicked > div{display:grid;gap:8px;max-width:48ch}
+.ectargets{display:flex;gap:8px;flex-wrap:wrap}
+.ectargets button{display:flex;align-items:center;gap:8px;padding:5px 12px 5px 5px;border-radius:999px;border:1.5px solid rgba(216,185,164,.4);background:rgba(0,0,0,.25);color:var(--ink);font-weight:700}
+.ectargets button small{color:var(--soft);font-weight:400}
+.ectargets button small::after{content:" cards"}
+.ectargets button[aria-pressed="true"]{border-color:var(--gold);background:rgba(244,195,90,.2)}
+.ecguess{display:grid;gap:8px}
+.ecpad{display:flex;flex-wrap:wrap;gap:6px}
+.ecpad button{min-width:44px;height:44px;border-radius:10px;border:1.5px solid rgba(244,195,90,.6);background:rgba(244,195,90,.1);color:var(--ink);font-family:var(--font-display);font-size:1.1rem;display:grid;place-items:center;line-height:1;padding:4px 8px}
+.ecpad button small{font-family:var(--font-body);font-size:.6rem;color:var(--soft)}
+.ecpad button:hover{background:rgba(244,195,90,.25)}
+.ecchips{display:flex;gap:6px;flex-wrap:wrap;margin-right:auto;flex:1 1 140px;min-width:140px}
+.ecchip{border:0;border-radius:999px;background:var(--gold);color:#2A1408;font-weight:700;padding:4px 10px;white-space:nowrap;flex:none}
+.ectried{margin:0;padding-left:1.1em}
+.ec-recent{font-size:.92rem;color:var(--soft);display:grid;gap:2px}
+.ec-recent b{color:var(--ink)}
+.ec-sum{list-style:none;margin:0;padding:0;display:grid;gap:4px}
+.ec-sum li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px 4px;border-top:1px solid rgba(216,185,164,.15)}
+.ec-sum .pt{font-family:var(--font-display);color:var(--gold);font-size:1.15rem;display:grid;justify-items:end;line-height:1}
+.ec-sum .pt small{font-family:var(--font-body);font-size:.65rem;color:var(--soft)}
+.ec-winner{font-family:var(--font-display);font-size:clamp(1.5rem,5vw,2.4rem);color:var(--gold);line-height:1.05;text-shadow:0 0 18px rgba(255,140,50,.5)}
+
+.ec-log,.ec-rules{font-size:.9rem;color:var(--soft)}
+.ec-log summary,.ec-rules summary{cursor:pointer;font-weight:700;color:var(--ink)}
+.ec-log ol{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:3px;max-height:260px;overflow:auto}
+.ec-log li b,.ec-rules b{color:var(--ink)}
+.ecrules,.ecref{margin:8px 0 0;padding-left:1.2em;display:grid;gap:4px}
+.ecref{font-size:.88rem}
+
+.ec-banner{position:fixed;left:50%;top:22%;z-index:40;transform:translateX(-50%);pointer-events:none;text-align:center;max-width:calc(100% - 24px);
+  font-family:var(--font-display);font-size:clamp(1.6rem,7vw,3.2rem);line-height:1.1;color:#FFD27F;
+  text-shadow:0 3px 0 #5A1E00,0 0 24px rgba(255,122,47,.7),0 6px 16px rgba(0,0,0,.6);animation:ecban 1.8s cubic-bezier(.2,1.4,.4,1) forwards}
+.ec-banner small{display:block;font-family:var(--font-body);font-weight:700;font-size:.42em;color:#fff;text-shadow:0 2px 6px rgba(0,0,0,.8);margin-top:6px}
+@keyframes ecban{0%{transform:translateX(-50%) scale(2);opacity:0}15%{transform:translateX(-50%) scale(1);opacity:1}80%{opacity:1}100%{opacity:0}}
+
+/* host settings in the room */
+.ecset{display:flex;flex-wrap:wrap;gap:8px}
+.ecset button{border:1.5px solid var(--line-strong);border-radius:999px;background:transparent;padding:5px 12px;font-weight:700;font-size:.88rem;color:inherit}
+.ecset button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+.ecset button:disabled{cursor:default}
+.ecstep{display:flex;align-items:center;border:1.5px solid var(--ink);border-radius:8px;overflow:hidden;flex:none}
+.ecstep button{width:36px;height:34px;border:0;background:transparent;font-weight:700;font-size:1.1rem;color:inherit}
+.ecstep button:disabled{opacity:.3;cursor:default}
+.ecstep output{min-width:44px;text-align:center;font-family:var(--font-display);border-inline:1.5px solid var(--ink);padding:6px 4px}
+
+/* phone: rivals in a row on top, the center, then you */
+.ec-stack{display:grid;gap:12px;--cw:44px;padding:12px 8px;border-radius:16px;background:radial-gradient(ellipse at 50% 45%,#5A2A17,#331309 60%,#1C0904);box-shadow:inset 0 0 0 2px #C9973F,inset 0 0 40px rgba(0,0,0,.6)}
+.ec-rivals{display:flex;gap:6px;justify-content:center;align-items:flex-start}
+.ec-stack .ecspot{position:static;transform:none}
+.ec-stack .ec-rivals .ecseat{max-width:none;width:100%;padding:5px 6px 6px}
+.ec-rivals .ecspot{flex:1 1 0}
+.ec-rivals .echead .avatar,.ec-rivals .echead > :first-child{flex:none}
+.ec-rivals .echand{gap:2px}
+.ec-rivals .ecc.sm{--w:calc(var(--cw)*.44)}
+.ec-stack .eccenter{position:static;transform:none;max-width:none}
+.ec-stack .ecspot.mine{--cw:58px;justify-self:center}
+.ec-stack .ecspot.mine .ecseat{max-width:calc(100vw - 40px)}
+@media (max-width:620px){
+  .ec{padding-inline:10px;border-radius:14px}
+  .echead .nm{max-width:90px}
+  .ec-rivals .echead{flex-wrap:wrap;gap:4px}
+  .ec-rivals .echead .nm{max-width:70px;font-size:.82rem}
+  .ec-rivals .echead .tally{font-size:.95rem}
+  .ecc.big{--w:80px}
+}
+@media (prefers-reduced-motion: reduce){.ec-banner{animation-duration:.01s}.ecc.pick,.ecc.sel{transform:none}}
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.ec.fitted{gap:10px}
+@container (min-width:860px){
+  .ec.fitted .ec-main{flex:1 1 0;min-height:0;align-items:stretch}
+  .ec.fitted .ec-side{overflow:auto;min-height:0}
+  .ec.fitted .ec-round{height:100%;min-height:0}
+}
+.ec.fitted .ec-round{--cw:clamp(34px,calc(var(--fit-h) * .07),64px)}
+.ec.fitted .ecspot.mine{--cw:clamp(42px,calc(var(--fit-h) * .085),74px)}
+.ec.fitted .ec-sum li{padding:3px 4px}
+.ec.fitted .ec-act,.ec.fitted .ec-know{padding:10px 14px;gap:8px}

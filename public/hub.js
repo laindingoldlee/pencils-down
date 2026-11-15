@@ -17,7 +17,9 @@ const GAME_LIST = [
   { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
     blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
   { id: 'bw11', name: 'Black, White & Eleven', players: '2+ players', ready: true,
-    blurb: 'Guess the hidden numbers in everyone’s tiles. Lie, call bluffs, and feed the Liar’s Pot.' }
+    blurb: 'Guess the hidden numbers in everyone’s tiles. Lie, call bluffs, and feed the Liar’s Pot.' },
+  { id: 'ember', name: 'The Ember Crown', players: '3–4 players', ready: true,
+    blurb: 'Every rival hides a hand of relics. Scout, spy and steal, then name their whole hand to knock them out.' }
 ];
 
 /* ---------- helpers ---------- */
@@ -263,7 +265,7 @@ function render() {
    (a big group, a small window), the whole game is shrunk just enough to fit. */
 const fitsScreen = () => window.innerWidth >= 900 && window.innerHeight >= 480 && matchMedia('(hover: hover) and (pointer: fine)').matches;
 function fitGame() {
-  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7');
+  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7, :scope > section.ec');
   const on = !!sec && fitsScreen();
   document.body.classList.toggle('fitmode', on);
   if (!sec) return;
