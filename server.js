@@ -4,7 +4,7 @@
  *
  * Friends meet in a party room (public/index.html), send emotes, and the host picks a game:
  *  - Games that run inside the room live in games/ and plug in through GAMES below
- *    (The Fifth Element so far).
+ *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent).
  *  - Pencils Down has its own page and server code (games/pencils-down.js). Starting it
  *    opens a Pencils Down game with the room's code and sends everyone there.
  *
@@ -22,12 +22,13 @@ const fifth = require('./games/fifth-element');
 const bw11 = require('./games/black-white-eleven');
 const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
+const cc = require('./games/countercurrent');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7 };                     // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, cc };                     // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'cc']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -61,10 +62,22 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
+/* Countercurrent's pictures, if any have been added (see the README for the names). */
+function loadArt(dir, urlBase) {
+  const out = {};
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/^([a-z0-9-]+)\.(png|webp|jpg|jpeg)$/i);
+      if (m) out[m[1].toLowerCase()] = urlBase + f;
+    }
+  } catch (e) { /* no art yet */ }
+  return out;
+}
 const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
-  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
+  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') },
+  cc: { art: loadArt(path.join(PUBLIC, 'games', 'countercurrent', 'art'), '/games/countercurrent/art/') }
 };
 
 /* ---------- web server ---------- */

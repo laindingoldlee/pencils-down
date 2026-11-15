@@ -14,6 +14,8 @@ const GAME_LIST = [
     blurb: 'Five magic items, one card. Grab the right one before anyone else does.' },
   { id: 't7', name: 'The Triple Seven', players: '2+ players', ready: true,
     blurb: 'Keep your face-down cards low. Swap, peek, lock and steal. Three 7s is a perfect zero.' },
+  { id: 'cc', name: 'Countercurrent: The Pelagos Protocol', players: '3–4 players', ready: true,
+    blurb: 'Two compound samples are sealed away. Scan, trade and steal from rival teams, then claim the formula first.' },
   { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
     blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
   { id: 'bw11', name: 'Black, White & Eleven', players: '2+ players', ready: true,
@@ -263,7 +265,7 @@ function render() {
    (a big group, a small window), the whole game is shrunk just enough to fit. */
 const fitsScreen = () => window.innerWidth >= 900 && window.innerHeight >= 480 && matchMedia('(hover: hover) and (pointer: fine)').matches;
 function fitGame() {
-  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7');
+  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7, :scope > section.cc');
   const on = !!sec && fitsScreen();
   document.body.classList.toggle('fitmode', on);
   if (!sec) return;
