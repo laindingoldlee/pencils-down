@@ -4,7 +4,8 @@
  *
  * Friends meet in a party room (public/index.html), send emotes, and the host picks a game:
  *  - Games that run inside the room live in games/ and plug in through GAMES below
- *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent).
+ *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent,
+ *    The Ember Crown, The Turning Tide, Signal Salvage, Starlight Signal).
  *  - Pencils Down has its own page and server code (games/pencils-down.js). Starting it
  *    opens a Pencils Down game with the room's code and sends everyone there.
  *
@@ -26,12 +27,13 @@ const ember = require('./games/ember-crown');
 const cc = require('./games/countercurrent');
 const tide = require('./games/turning-tide');
 const ss = require('./games/signal-salvage');
+const sl = require('./games/starlight-signal');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7, ember, cc, tide, ss };                       // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc', 'tide', 'ss']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember, cc, tide, ss, sl };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc', 'tide', 'ss', 'sl']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -65,7 +67,7 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
-/* Pictures in a folder, by name without the extension (The Ember Crown, Countercurrent The Turning Tide and Signal Salvage). */
+/* Pictures in a folder, by name without the extension (The Ember Crown, Countercurrent, The Turning Tide, Signal Salvage and Starlight Signal). */
 function loadArt(dir, urlBase) {
   const out = {};
   try {
@@ -90,6 +92,11 @@ const CATALOG = {
     sounds: loadSounds(path.join(PUBLIC, 'games', 'tide', 'sounds'), '/games/tide/sounds/')
   },
   ss: { emblems: ss.EMBLEMS, names: ss.NAMES, specialists: ss.SPECIALISTS, protocols: ss.PROTOCOLS, art: loadArt(path.join(PUBLIC, 'games', 'ss', 'art'), '/games/ss/art/') },
+  sl: {
+    flipTimes: sl.FLIP_TIMES,
+    art: loadArt(path.join(PUBLIC, 'games', 'starlight', 'art'), '/games/starlight/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'starlight', 'sounds'), '/games/starlight/sounds/')
+  },
 };
 
 /* ---------- web server ---------- */

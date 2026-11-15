@@ -20,6 +20,8 @@ const GAME_LIST = [
     blurb: 'Scout hidden waters, board rival ships and claim the most of the 4×4 chart. Tide beats Powder beats Gale beats Stone.' },
   { id: 'ss', name: 'Signal Salvage', players: '2–8 players', ready: true,
     blurb: 'Scan a derelict station for salvage. Push your luck: the same signal twice and your run collapses.' },
+  { id: 'sl', name: 'Starlight Signal', players: '2–6 players', ready: true,
+    blurb: 'Flip star cards and race to the bell when one colour shows exactly five stars. A comet makes it four.' },
   { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
     blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
   { id: 'bw11', name: 'Black, White & Eleven', players: '2+ players', ready: true,
@@ -271,7 +273,7 @@ function render() {
    (a big group, a small window), the whole game is shrunk just enough to fit. */
 const fitsScreen = () => window.innerWidth >= 900 && window.innerHeight >= 480 && matchMedia('(hover: hover) and (pointer: fine)').matches;
 function fitGame() {
-  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7, :scope > section.ec, :scope > section.cc, :scope > section.tt, :scope > section.ss');
+  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7, :scope > section.ec, :scope > section.cc, :scope > section.tt, :scope > section.ss, :scope > section.sl');
   const on = !!sec && fitsScreen();
   document.body.classList.toggle('fitmode', on);
   if (!sec) return;
