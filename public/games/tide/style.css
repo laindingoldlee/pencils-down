@@ -61,7 +61,7 @@
 .tc .em > svg,.tc .em > .ico,.tc .em > img{width:100%;height:100%;object-fit:contain}
 .tc .em .glyph{font-size:50cqw;line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols",sans-serif}
 .tc .nm{position:absolute;left:8%;right:8%;bottom:6%;font:700 max(7px,10.5cqw) var(--font-body);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#4A3B20;z-index:2}
-.tc .badge{position:absolute;top:10%;right:9%;width:20%;height:20%;z-index:2;display:grid}
+.tc .badge{position:absolute;top:10%;right:9%;width:24%;height:24%;z-index:2;display:grid}
 .tc .badge > *{width:100%;height:100%;object-fit:contain}
 .tc.t-ship{background:var(--face,none) center/cover,linear-gradient(160deg,#F6E7B9,#D9BC74)}
 .tc.t-ship.none::before{background:linear-gradient(90deg,#8C6420,#E6B94E,#8C6420)}
@@ -89,12 +89,12 @@ button.tc{cursor:default}
 .tt-hand .lbl{font-weight:700}
 .tt-hand .lbl small{font-weight:400;color:var(--soft);margin-left:6px}
 .tt-hand .cards{display:flex;flex-wrap:wrap;gap:8px;padding-top:4px}
-.tt-hand .tc{--w:84px;transition:transform .12s}
+.tt-hand .tc{--w:96px;transition:transform .12s}
 .tt-hand button.tc{cursor:pointer}
 .tt-hand button.tc:hover{transform:translateY(-3px)}
 .tt-hand .tc.sel{transform:translateY(-6px);box-shadow:0 0 0 3px var(--gold),0 0 18px var(--gold)}
-.tt-hand .tc.can::after{content:"⚔";position:absolute;top:2%;right:4%;font:700 13cqw var(--font-body);color:#1B1606;z-index:3}
-.tt-hand .tc.full.can::after{background:var(--gold);border-radius:50%;width:22cqw;height:22cqw;display:grid;place-items:center;top:4%;right:4%}
+.tt-hand .tc.can::after{content:"⚔";position:absolute;top:3%;left:50%;transform:translateX(-50%);font:700 13cqw var(--font-body);color:#1B1606;z-index:3}
+.tt-hand .tc.full.can::after{background:var(--gold);border-radius:50%;width:22cqw;height:22cqw;display:grid;place-items:center;top:4%}
 
 .tt-act{background:rgba(0,0,0,.28);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
 .tt-act.mine{box-shadow:inset 0 0 0 2px var(--gold)}

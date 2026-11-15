@@ -93,11 +93,12 @@ function cardHTML(c, o) {
   const name = c.t === 'crew' ? FORCE[c.f].name : c.t === 'sign' ? SIGNS[c.n - 1] : (c.n === 0 ? 'Sun Ship' : `Ship ${c.n}`);
   // The Sun Ship's corners show 10, its value, with its ship number in the name line.
   const corner = `${c.v}${c.t === 'ship' && c.n === 0 ? '<i>☀</i>' : ''}`;
-  const sub = c.t === 'sign' ? `<span class="badge" title="${FORCE[c.f].name}">${forceIcon(c.f)}</span>` : '';
+  const full = isRaster(cardArt(c));
+  // Signs always show their force's badge; so do Crew cards with full-color art, so the force reads at a glance.
+  const sub = c.t === 'sign' || (c.t === 'crew' && full) ? `<span class="badge" title="${FORCE[c.f].name}">${forceIcon(c.f)}</span>` : '';
   const tag = o.act ? 'button' : 'span';
   const attrs = o.act ? ` type="button" data-act="${o.act}" data-k="${esc(o.k)}"` : '';
   const face = art('face');
-  const full = isRaster(cardArt(c));
   return `<${tag} class="tc t-${c.t} ${c.f || 'none'}${full ? ' full' : ''}${o.owner ? ' owned' : ''} ${o.cls || ''}"${attrs} style="--fc:${color};${own}${face ? `--face:url('${esc(face)}');` : ''}" aria-label="${esc((o.label ? o.label + ': ' : '') + cardName(c))}" title="${esc(cardName(c))}">
     <span class="cn">${corner}</span>${sub}<span class="em">${emblem(c)}</span><span class="nm">${esc(name)}${c.t === 'ship' && c.n === 0 ? ' · 0' : ''}</span><span class="cn r">${corner}</span></${tag}>`;
 }
