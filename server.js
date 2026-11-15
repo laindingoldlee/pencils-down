@@ -22,12 +22,13 @@ const fifth = require('./games/fifth-element');
 const bw11 = require('./games/black-white-eleven');
 const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
+const ss = require('./games/signal-salvage');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7 };                     // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ss };                     // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ss']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -64,6 +65,7 @@ function loadSounds(dir, urlBase) {
 const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
+  ss: { emblems: ss.EMBLEMS, names: ss.NAMES, specialists: ss.SPECIALISTS, protocols: ss.PROTOCOLS },
   bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
 };
 
