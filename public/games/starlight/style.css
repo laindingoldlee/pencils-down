@@ -28,7 +28,7 @@
 
 .sl-top{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
 .sl-title{font-family:var(--font-display);font-size:1.15rem;color:var(--gold);margin-right:auto;text-shadow:0 0 14px rgba(245,197,66,.45);line-height:1.1}
-.sl-title img{height:40px;display:block}
+.sl-title img{height:44px;width:auto;max-width:100%;display:block}
 .sl-chip{font-size:.9rem;font-weight:700;border:1px solid var(--line);background:rgba(245,197,66,.12);border-radius:999px;padding:3px 12px;display:inline-flex;align-items:center;gap:5px}
 .sl-chip b{font-family:var(--font-display);font-size:1.1em;color:var(--gold)}
 .sl-chip.comet{background:rgba(155,231,255,.18);border-color:var(--comet);animation:slpulse 1.6s ease-in-out infinite}
