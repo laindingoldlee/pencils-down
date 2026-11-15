@@ -2,8 +2,8 @@
 /*
  * The Turning Tide: A Pirate's Claim, a tactical card game for 2 to 4 captains.
  *
- * 78 cards: 56 Crew (Tide, Powder, Gale and Stone, numbered 1-14), 12 Captain's Signs
- * (1-12, each belonging to a force) and 10 Legendary Ships (1-10, no force).
+ * 78 cards: 56 Crew (Tide, Powder, Gale and Stone, numbered 2-15), 12 Captain's Signs
+ * (1-12, the zodiac, each belonging to a force) and 10 Legendary Ships (0-9, no force).
  * 16 cards go face down in a 4x4 chart, everyone gets 5, the rest are the draw pile.
  *
  * On your turn, do one thing:
@@ -38,9 +38,9 @@ const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto
 function makeDeck() {
   const deck = [];
   let id = 1;
-  for (const f of FORCES) for (let n = 1; n <= 14; n++) deck.push({ id: id++, t: 'crew', f, n });
+  for (const f of FORCES) for (let n = 2; n <= 15; n++) deck.push({ id: id++, t: 'crew', f, n });
   for (let n = 1; n <= 12; n++) deck.push({ id: id++, t: 'sign', f: SIGN_FORCE[(n - 1) % 4], n });
-  for (let n = 1; n <= 10; n++) deck.push({ id: id++, t: 'ship', f: null, n });
+  for (let n = 0; n <= 9; n++) deck.push({ id: id++, t: 'ship', f: null, n });
   return deck;
 }
 /* Does attacker a defeat defender d? Equal numbers with no counter: nobody wins. */
