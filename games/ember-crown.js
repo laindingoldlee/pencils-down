@@ -442,6 +442,225 @@ function endRound(g, why, winner, pts) {
   g.ctx.broadcast();
 }
 
+/* ---------- bots ----------
+   A practice opponent. It decides only from its own view(): its hand, the public table
+   and log, and the private log lines it was shown (its "What you know this round").
+   From those it keeps, for each rival, what it knows about their hand, counts every
+   hand that still fits, and challenges only when one guess is likely. Otherwise it
+   scouts or plays a card, and makes the follow-up choices those cards ask for. */
+const HUNTER_KEEP = n => n >= 5 && n <= 9;
+const KNIGHT_KEEP = n => [2, 4, 6, 8].includes(n);
+const removeOne = (a, n) => { const i = a.indexOf(n); if (i >= 0) a.splice(i, 1); return i >= 0; };
+const guessKey = hand => hand.flatMap(n => named({ n })).sort((a, b) => a - b).join(',');
+
+/* Replay this round's log, as this seat saw it, into what's known about each rival. */
+function knowledge(v, me) {
+  const K = {};
+  const fresh = () => ({ exact: null, has: [], filters: {}, le10: false, gt10: false, no00: false, wrong: [], right: null });
+  for (const p of v.order) if (p !== me) K[p] = fresh();
+  const forget = k => { k.wrong = []; k.right = null; };
+  const pubLose = (p, n) => {
+    const k = K[p]; if (!k) return;
+    if (k.exact) removeOne(k.exact, n);
+    removeOne(k.has, n);
+    if (k.filters.hunter && HUNTER_KEEP(n)) removeOne(k.filters.hunter, n);
+    if (k.filters.knight && KNIGHT_KEEP(n)) removeOne(k.filters.knight, n);
+    k.gt10 = false; if (n === 0) k.no00 = false; forget(k);
+  };
+  const pubGain = (p, n) => {
+    const k = K[p]; if (!k) return;
+    if (k.exact) k.exact.push(n);
+    k.has.push(n);
+    if (k.filters.hunter && HUNTER_KEEP(n)) k.filters.hunter.push(n);
+    if (k.filters.knight && KNIGHT_KEEP(n)) k.filters.knight.push(n);
+    k.le10 = false; if (n === 0 || n === WRAITH) k.no00 = false; forget(k);
+  };
+  const unkLose = p => { const k = K[p]; if (!k) return; k.exact = null; k.has = []; k.filters = {}; k.gt10 = false; k.no00 = false; forget(k); };
+  const unkGain = p => { const k = K[p]; if (!k) return; k.exact = null; k.filters = {}; k.le10 = false; k.no00 = false; forget(k); };
+  const out = new Set();
+  for (const e of v.log) {
+    if (e.round !== v.round) continue;
+    const m = e.mine;
+    switch (e.k) {
+      case 'scout': if (e.swapped && e.pid !== me) { unkLose(e.pid); unkGain(e.pid); } break;
+      case 'play': if (e.pid !== me) pubLose(e.pid, e.n); break;
+      case 'plague':
+        if (e.pid === me) break;
+        for (const n of e.back) pubGain(e.pid, n);
+        if (e.center) unkGain(e.pid);
+        break;
+      case 'bury': if (e.pid !== me) unkLose(e.pid); break;
+      case 'barbarian':
+        for (const p of Object.keys(K)) {
+          if (p === e.pid || out.has(p)) continue;
+          const k = K[p];
+          if (e.shown.includes(p)) {
+            k.gt10 = true; k.le10 = false;
+            if (m && m.hands[p]) { k.exact = m.hands[p].slice(); k.has = m.hands[p].slice(); k.filters = {}; forget(k); }
+          } else { k.le10 = true; k.gt10 = false; }
+        }
+        break;
+      case 'hunter': case 'knight':
+        if (m) for (const p of Object.keys(m.hands)) if (K[p]) K[p].filters[e.k] = m.hands[p].slice();
+        break;
+      case 'swapped':
+        if (m && m[me]) {
+          const other = e.a === me ? e.b : e.a;
+          pubLose(other, m[me].got); pubGain(other, m[me].gave);
+        } else for (const p of [e.a, e.b]) if (p !== me) { unkLose(p); unkGain(p); }
+        break;
+      case 'warrior': if (e.holder) { if (e.holder !== me) pubLose(e.holder, e.n); if (e.pid !== me) pubGain(e.pid, e.n); } break;
+      case 'warriorGive':
+        if (m) { if (e.pid === me) pubGain(e.holder, m.n); else pubLose(e.pid, m.n); }
+        else { unkLose(e.pid); unkGain(e.holder); }
+        break;
+      case 'doom': for (const p of Object.keys(e.lost)) if (p !== me) pubLose(p, e.lost[p]); break;
+      case 'spirit': for (const p of Object.keys(K)) if (p !== e.pid && !e.hit.includes(p)) K[p].no00 = true; break;
+      case 'duelGuess': case 'challenge': {
+        const k = K[e.target]; if (!k) break;
+        const key = e.guess.slice().sort((a, b) => a - b).join(',');
+        if (e.right) k.right = key; else if (!k.wrong.includes(key)) k.wrong.push(key);
+        break;
+      }
+      case 'out': out.add(e.pid); delete K[e.pid]; break;
+    }
+  }
+  return K;
+}
+
+/* Every hand that still fits what this seat knows about rival p, grouped by the guess
+   that would name it, with how many ways each could be dealt. */
+function candidates(g, v, me, K, p) {
+  const k = K[p], size = v.players[p].count;
+  const left = {};
+  for (let n = 0; n <= 9; n++) left[n] = n <= 1 ? 5 : 1;
+  if (v.settings.wraith) left[WRAITH] = 1;
+  const seen = [...v.players[me].hand.map(c => c.n), ...v.removed, ...v.discard];
+  for (const q of v.order) {
+    seen.push(...v.players[q].played);
+    if (!v.players[q].alive) seen.push(...v.players[q].hand);
+    else if (q !== me && q !== p && K[q]) seen.push(...(K[q].exact || K[q].has));
+  }
+  for (const n of seen) if (left[n] > 0) left[n] -= 1;
+  const must = k.exact ? k.exact.slice() : k.has.slice();
+  for (const n of must) if (left[n] > 0) left[n] -= 1;
+  const want = size - must.length;
+  const fits = hand => {
+    if (k.exact && hand.length !== k.exact.length) return false;
+    for (const [kind, keep] of [['hunter', HUNTER_KEEP], ['knight', KNIGHT_KEEP]]) {
+      const f = k.filters[kind];
+      if (f && hand.filter(keep).sort((a, b) => a - b).join(',') !== f.slice().sort((a, b) => a - b).join(',')) return false;
+    }
+    const total = handTotal(g, hand.map(n => ({ n })));
+    if (k.le10 && total > 10) return false;
+    if (k.gt10 && total <= 10) return false;
+    if (k.no00 && hand.filter(n => n === 0).length === 2) return false;
+    const key = guessKey(hand);
+    if (k.wrong.includes(key)) return false;
+    if (k.right && k.right !== key) return false;
+    return true;
+  };
+  const out = new Map();
+  const values = Object.keys(left).map(Number);
+  const choose = (n, r) => { let x = 1; for (let i = 0; i < r; i++) x = x * (n - i) / (i + 1); return x; };
+  const walk = (i, need, hand, ways) => {
+    if (need === 0) {
+      const full = must.concat(hand);
+      if (!fits(full)) return;
+      const key = guessKey(full);
+      out.set(key, (out.get(key) || 0) + ways);
+      return;
+    }
+    if (i >= values.length) return;
+    const n = values[i];
+    for (let c = 0; c <= Math.min(need, left[n]); c++) {
+      walk(i + 1, need - c, c ? hand.concat(Array(c).fill(n)) : hand, ways * choose(left[n], c));
+    }
+  };
+  if (k.exact) { if (fits(must)) out.set(guessKey(must), 1); }
+  else if (want >= 0) walk(0, want, [], 1);
+  let total = 0;
+  for (const w of out.values()) total += w;
+  let best = null;
+  for (const [key, w] of out) if (!best || w > best.w) best = { key, w };
+  if (!best) {
+    // Our notes contradict each other (something we couldn't follow): guess a plausible hand.
+    const pool = values.flatMap(n => Array(Math.max(0, left[n])).fill(n));
+    const guess = shuffle(pool).slice(0, Math.max(0, want)).concat(must).flatMap(n => named({ n }));
+    while (guess.length < size) guess.push(0);
+    return { guess: guess.slice(0, MAX_GUESS), p: 0 };
+  }
+  return { guess: best.key.split(',').map(Number).slice(0, MAX_GUESS), p: best.w / total };
+}
+
+function bot(g, pid) {
+  if (g.phase !== 'play' || !g.turn || !g.p[pid] || !g.p[pid].alive) return null;
+  const v = view(g, pid), t = v.turn;
+  if (!v.waiting.includes(pid)) return null;
+  const hand = v.players[pid].hand;                      // [{ id, n }]
+  const rivalsNow = v.order.filter(p => p !== pid && v.players[p].alive);
+  // Any card but the Water Goddess, whom we'd like to end up holding alone.
+  const spare = () => pickRandom(hand.filter(c => c.n !== 9).length ? hand.filter(c => c.n !== 9) : hand).id;
+
+  if (t.step === 'apprentice') return { move: { a: 'give', id: spare() } };
+
+  const K = knowledge(v, pid);
+  const reads = () => rivalsNow.map(p => Object.assign({ pid: p }, candidates(g, v, pid, K, p))).sort((a, b) => b.p - a.p);
+
+  switch (t.step) {
+    case 'choose': {
+      const best = reads()[0];
+      const playable = hand.filter(c => (hand.length >= 2 || c.n === 8) && !(c.n === 7 && t.first));
+      // Down to the Water Goddess and one other card: play the other and she wins next turn.
+      const goddess = hand.length === 2 && hand.some(c => c.n === 9) && playable.find(c => c.n !== 9);
+      if (goddess) return { move: { a: 'play', id: goddess.id } };
+      const options = playable.filter(c => c.n !== 9 && !(c.n === 0 && rivalsNow.length < 2));
+      // With nothing useful left to play, scouting alone can't end the round: take a chance.
+      const nerve = options.length ? 0.5 : Math.random() < 0.35 ? 0 : 0.34;
+      if (best.p >= nerve) return { move: { a: 'challenge', target: best.pid, guess: best.guess } };
+      if (v.centerCount && (!options.length || Math.random() < 0.3)) {
+        return { move: { a: 'scout', slot: crypto.randomInt(v.centerCount) } };
+      }
+      if (options.length) return { move: { a: 'play', id: pickRandom(options).id } };
+      if (playable.length) return { move: { a: 'play', id: pickRandom(playable).id } };
+      // No scouting and no card we may play: a challenge is the only move left.
+      return { move: { a: 'challenge', target: best.pid, guess: best.guess } };
+    }
+    case 'scout': {
+      // We see the center card. Take a Goddess, or now and then swap a weak card out.
+      if (t.look === 9 && hand.some(c => c.n !== 9)) return { move: { a: 'swap', id: spare() } };
+      if (t.look !== 9 && Math.random() < 0.25) return { move: { a: 'swap', id: spare() } };
+      return { move: { a: 'return' } };
+    }
+    case 'pair': return { move: { a: 'targets', pids: shuffle(rivalsNow.slice()).slice(0, 2) } };
+    case 'name': {
+      // Name a number we know a rival holds, else one we haven't seen anywhere.
+      const known = rivalsNow.flatMap(p => (K[p] && (K[p].exact || K[p].has)) || []).filter(n => n >= 2 && n <= 9);
+      if (known.length) return { move: { a: 'name', n: pickRandom(known) } };
+      const seen = new Set([...hand.map(c => c.n), ...v.removed, ...v.discard,
+        ...v.order.flatMap(p => v.players[p].played.concat(v.players[p].alive ? [] : v.players[p].hand))]);
+      const unseen = [2, 3, 4, 5, 6, 7, 8, 9].filter(n => !seen.has(n));
+      return { move: { a: 'name', n: pickRandom(unseen.length ? unseen : [2, 3, 4, 5, 6, 7, 8, 9]) } };
+    }
+    case 'warrior': return { move: { a: 'give', id: spare() } };
+    case 'bury': return { move: { a: 'bury', id: spare() } };
+    case 'duelTarget': {
+      const best = reads()[0];
+      return { move: best ? { a: 'target', pid: best.pid } : { a: 'done' } };
+    }
+    case 'duel': {
+      if (!v.players[t.target] || !v.players[t.target].alive || (K[t.target] && K[t.target].right)) return { move: { a: 'done' } };
+      return { move: { a: 'guess', guess: candidates(g, v, pid, K, t.target).guess } };
+    }
+    case 'chain': {
+      const best = reads()[0];
+      if (best && best.p >= 0.5) return { move: { a: 'challenge', target: best.pid, guess: best.guess } };
+      return { move: { a: 'done' } };
+    }
+  }
+  return null;
+}
+
 function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
@@ -482,6 +701,6 @@ function view(g, viewer) {
 module.exports = {
   id: 'ember', name: 'The Ember Crown', minPlayers: 3,
   defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
   _guessMatches: guessMatches, _startRound: startRound, _autoMove: autoMove // for tests
 };
