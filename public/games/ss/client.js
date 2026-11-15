@@ -78,8 +78,11 @@ function cardHTML(c, o) {
   const tag = o.act ? 'button' : 'span';
   const attrs = o.act ? ` type="button" data-act="${o.act}" data-k="${esc(o.k)}"` : '';
   const g = H.st && H.st.game;
-  return `<${tag} class="${cls.join(' ')}" style="--c:${e.color}"${attrs} title="${esc(e.name)} ${c.v}: ${esc(emText(c.e, g))}" aria-label="${esc(e.name)} ${c.v}${o.prot ? ', protected' : ''}">
-    <span class="v">${c.v}</span>${icon(c.e)}<span class="n">${esc(e.name)}</span>${o.prot ? '<span class="shieldtag" aria-hidden="true">🛡</span>' : ''}</${tag}>`;
+  // Big cards show the full illustration; small ones (vault stacks) just the emblem.
+  const face = o.size !== 'sm' && art('face-' + c.e);
+  if (face) cls.push('art');
+  return `<${tag} class="${cls.join(' ')}" style="--c:${e.color}${face ? `;--face:url('${esc(face)}')` : ''}"${attrs} title="${esc(e.name)} ${c.v}: ${esc(emText(c.e, g))}" aria-label="${esc(e.name)} ${c.v}${o.prot ? ', protected' : ''}">
+    <span class="v">${c.v}</span>${face ? '<span></span>' : icon(c.e)}<span class="n">${esc(e.name)}</span>${o.prot ? '<span class="shieldtag" aria-hidden="true">🛡</span>' : ''}</${tag}>`;
 }
 function backHTML(o) {
   o = o || {};
@@ -101,7 +104,7 @@ function settings(st) {
     <div class="t7set">${seg('specialists', 0, !s.specialists, 'Off')}${seg('specialists', 1, s.specialists, 'On')}</div></div>
   <div class="setting stack"><span class="label">Mission Protocol <small class="muted" style="font-weight:400">changes the scoring or how you win. Pick one or none.</small></span>
     <div class="t7set">${seg('protocol', 'none', s.protocol === 'none', 'None')}${protos.map(p => seg('protocol', p.id, s.protocol === p.id, esc(p.name), p.text)).join('')}</div>
-    ${pr ? `<p class="muted" style="margin:0"><b>${esc(pr.name)}:</b> ${esc(pr.text)}</p>` : ''}</div>
+    ${pr ? `<p class="muted ss-prdesc" style="margin:0">${art(slug(pr.name)) ? `<img src="${esc(art(slug(pr.name)))}" alt="">` : ''}<span><b>${esc(pr.name)}:</b> ${esc(pr.text)}</span></p>` : ''}</div>
   <div class="setting"><span class="label">Aurora Protocol variant<br><small class="muted" style="font-weight:400">An Aurora picks a card already in the scan zone and uses its ability again.</small></span>
     <div class="t7set">${seg('aurora', 0, !s.aurora, 'Off')}${seg('aurora', 1, s.aurora, 'On')}</div></div>
   ${online > 4 ? `<div class="setting"><span class="label">Large crew</span><span class="muted">${online} players: two decks are shuffled together (100 to scan, 20 in the archive).</span></div>` : ''}

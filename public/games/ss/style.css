@@ -9,6 +9,7 @@
     radial-gradient(1px 1px at 55% 40%,rgba(255,255,255,.35),transparent 60%),
     radial-gradient(90% 70% at 80% 0%,rgba(46,196,182,.16),transparent 70%),
     radial-gradient(80% 70% at 0% 100%,rgba(187,107,217,.16),transparent 70%),
+    linear-gradient(rgba(4,8,22,.55),rgba(4,8,22,.7)),
     var(--bgimg,none) center/cover,
     linear-gradient(160deg,#0B1330,#060A1A 70%)}
 .ss *{min-width:0}
@@ -134,7 +135,7 @@ button.ssc{cursor:pointer}
 .ss-spec{width:min(240px,100%);display:grid;gap:6px;justify-items:start;align-content:start;text-align:left;padding:12px;border-radius:14px;border:1.5px solid rgba(255,227,138,.5);background:linear-gradient(160deg,rgba(255,227,138,.12),rgba(8,14,32,.8));color:var(--ink);font:inherit}
 button.ss-spec{cursor:pointer}
 button.ss-spec:hover{border-color:#FFE38A;box-shadow:0 0 18px -6px #FFE38A}
-.ss-spec img,.ss-spec .ph{width:64px;height:64px;border-radius:12px;object-fit:cover}
+.ss-spec img,.ss-spec .ph{width:96px;height:96px;border-radius:12px;object-fit:cover}
 .ss-spec .ph{display:grid;place-items:center;font-family:var(--font-display);font-size:1.3rem;color:#FFE38A;background:rgba(255,227,138,.12);border:1px solid rgba(255,227,138,.4)}
 .ss-spec b{font-size:1rem;color:#FFE38A}
 .ss-spec span{font-size:.88rem;color:var(--soft)}
@@ -188,3 +189,13 @@ button.ss-spec:hover{border-color:#FFE38A;box-shadow:0 0 18px -6px #FFE38A}
 .ss.fitted .ss-act{flex:none}
 .ss.fitted .ss-vaults{flex:1 1 0;min-height:0;overflow:auto}
 .ss.fitted .ss-recent{display:none}
+
+/* real card art: the illustration fills the card, the value and name sit on top */
+.ssc.art{background:var(--face) center/cover no-repeat,#070C1E;border-color:color-mix(in srgb,var(--c) 85%,transparent)}
+.ssc.art .v{font-size:calc(var(--w)*.3);text-shadow:0 0 6px #000,0 0 10px var(--c),0 1px 0 #000}
+.ssc.art .n{align-self:end;width:100%;background:linear-gradient(transparent,rgba(4,8,22,.92) 45%);border-radius:0 0 calc(var(--w)*.1) calc(var(--w)*.1);padding-top:6px}
+img.ssi{filter:drop-shadow(0 0 4px color-mix(in srgb,var(--c,#5CE1FF) 70%,transparent))}
+.ss-prdesc{display:flex;gap:10px;align-items:center}
+.ss-prdesc img{width:40px;height:40px;border-radius:8px;flex:none}
+.ss-title img{height:44px;width:auto}
+.ss-banner img{max-height:160px;border-radius:10px;box-shadow:0 0 30px rgba(92,225,255,.5)}
