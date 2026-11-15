@@ -361,7 +361,7 @@ function renderRoom(main, st) {
   const crowd = st.players.map(p => {
     const kick = host && p.pid !== st.you
       ? `<button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
-    return `<li>${avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${p.pid === st.you ? 'you' : (p.connected ? '' : 'away')}${kick}</span></li>`;
+    return `<li>${avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${p.pid === st.you ? 'you' : (p.bot ? '🤖 bot' : (p.connected ? '' : 'away'))}${kick}</span></li>`;
   }).join('');
   const cards = GAME_LIST.map(g => `<button type="button" class="gcard" data-act="select" data-k="${g.id}" aria-pressed="${st.selected === g.id}" ${g.ready && host ? '' : 'disabled'}>
       <span class="tag">${g.ready ? esc(g.players) : 'Coming soon'}</span><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p></button>`).join('');
@@ -387,7 +387,7 @@ function renderRoom(main, st) {
       <div class="linkline" style="padding-top:14px"><code id="inviteLink">${esc(link)}</code></div>
     </section>
     <section class="panel">
-      <header class="panel-head"><h2>In the room</h2><span class="muted">Tap an emote below to react</span></header>
+      <header class="panel-head"><h2>In the room</h2>${host ? `<span class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="btn" data-act="addBot">🤖 Add a bot</button><span class="muted">Bots play by the rules, not well. Good for practice.</span></span>` : '<span class="muted">Tap an emote below to react</span>'}</header>
       <ul class="crowd">${crowd}</ul>
     </section>
     <section class="panel">
@@ -430,6 +430,7 @@ document.addEventListener('click', async e => {
     }
     case 'kick': if (armed('kick', k)) { S.arm = null; emit('kick', { pid: k }); } else arm('kick', k); break;
     case 'toRoom': if (armed('toRoom')) { S.arm = null; emit('toRoom'); } else arm('toRoom'); break;
+    case 'addBot': b.disabled = true; emit('addBot').then(r => { if (r && !r.ok && r.error) toast(r.error); }); break;
     case 'toRoomNow': b.disabled = true; emit('toRoom'); break;
     case 'again': b.disabled = true; emit('again'); break;
     case 'leave':
