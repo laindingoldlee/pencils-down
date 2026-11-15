@@ -29,6 +29,8 @@ const PIPS = {
   5: [[28, 22], [72, 22], [50, 50], [28, 78], [72, 78]]
 };
 const PIP_SIZE = { 1: 56, 2: 42, 3: 34, 4: 36, 5: 32 };
+// Drawn star art has some empty space around it, so it's shown a little bigger.
+const PIP_SIZE_ART = { 1: 64, 2: 48, 3: 40, 4: 41, 5: 38 };
 // Seats around the table, yours first (at the bottom), then clockwise.
 const SEATS = {
   1: [[50, 86]],
@@ -98,7 +100,8 @@ function cardHTML(card, o) {
   const full = art(`card-${card.c}-${card.n}`);
   if (full) return `<span class="${cls.join(' ')}" style="--c:${c.color}" aria-label="${label}" title="${label}"><img class="full" src="${esc(full)}" alt=""></span>`;
   const bg = art('card-' + card.c);
-  const pips = PIPS[card.n].map(([x, y]) => `<i style="left:${x}%;top:${y}%;--ps:${PIP_SIZE[card.n]}%">${star(card.c)}</i>`).join('');
+  const size = (art('star-' + card.c) ? PIP_SIZE_ART : PIP_SIZE)[card.n];
+  const pips = PIPS[card.n].map(([x, y]) => `<i style="left:${x}%;top:${y}%;--ps:${size}%">${star(card.c)}</i>`).join('');
   return `<span class="${cls.join(' ')}" style="--c:${c.color}${bg ? `;--face:url('${esc(bg)}')` : ''}" aria-label="${label}" title="${label}">${pips}</span>`;
 }
 function backHTML() {
@@ -324,7 +327,7 @@ function midHTML(g, st) {
   let status;
   if (res) {
     const what = res.sig.map(c => `<b style="color:${COL[c].color}">${colourWord(c, true)}</b>`).join(' and ');
-    status = `<b>${esc(nm(res.pid))}</b> rang first! ${what} = ${res.target}. ${res.pid === me ? 'You take' : 'Takes'} ${res.n} card${res.n === 1 ? '' : 's'}.`;
+    status = `<b>${esc(nm(res.pid))}</b> rang first! ${what} = ${res.target} · +${res.n} card${res.n === 1 ? '' : 's'}`;
   } else if (g.phase === 'play' && !g.turn) {
     status = `Nobody has a card to flip. Ring if you see a signal… <span id="slStall"></span>`;
   } else if (g.turn) {
@@ -336,7 +339,7 @@ function midHTML(g, st) {
   }).join('')}</div>` : '';
   return `<div class="sl-mid">
     <div class="sl-bellrow">
-      <button type="button" class="sl-bell${bellSrc ? ' art' : ''}${res ? ' rung' : ''}" data-act="sl-ring" ${canRing ? '' : 'disabled'} aria-label="Ring the bell (Space)">
+      <button type="button" class="sl-bell${bellSrc ? ' art' : ''}${ringSrc ? ' two' : ''}${res ? ' rung' : ''}" data-act="sl-ring" ${canRing ? '' : 'disabled'} aria-label="Ring the bell (Space)">
         ${bellSrc ? `<img class="b0" src="${esc(bellSrc)}" alt="">${ringSrc ? `<img class="b1" src="${esc(ringSrc)}" alt="">` : ''}` : BELL_SVG}
       </button>
       <span class="sl-slot">${slot}</span>

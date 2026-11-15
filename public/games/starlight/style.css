@@ -116,8 +116,8 @@
 .sl-bell img.b1{position:absolute;inset:0;opacity:0}
 .sl-bell:hover:not(:disabled){transform:scale(1.04)}
 .sl-bell:active:not(:disabled),.sl-bell.press{animation:slding .45s}
-.sl-bell.press img.b1,.sl-bell.rung img.b1{opacity:1}
-.sl-bell.press img.b0,.sl-bell.rung img.b0{opacity:0}
+.sl-bell.two.press img.b1,.sl-bell.two.rung img.b1{opacity:1}
+.sl-bell.two.press img.b0,.sl-bell.two.rung img.b0{opacity:0}
 .sl-bell.rung{animation:slding .5s 2}
 .sl-bell:disabled{cursor:default;opacity:.75}
 .sl-bell:focus-visible{outline:3px solid var(--gold);outline-offset:4px;border-radius:12px}
@@ -162,9 +162,11 @@
   .sl{padding:10px 8px 12px;border-radius:14px}
   .sl-table{aspect-ratio:1/1.1;min-height:360px}
   .sl-table.n5,.sl-table.n6{aspect-ratio:3/4}
+  .n5 .sl-mid,.n6 .sl-mid{top:47%}
   .sl-top{gap:4px 10px}
   .sl-top .dd summary{padding:3px 10px;font-size:.85rem}
   .sl-mute .t{display:none}
+  .sl-status{font-size:.8rem;padding:3px 8px}
   .sl-totals{gap:3px;flex-wrap:nowrap}
   .sl-totals span{font-size:.78rem;padding:0 6px 0 3px}
   .sl-totals i{width:13px;height:13px}

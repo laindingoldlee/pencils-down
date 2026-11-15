@@ -29,6 +29,13 @@ Names are lowercase with dashes. SVG, PNG, WebP, JPG or GIF.
 
 Example: `star-jade.png`, `card-cobalt.webp`, `bell.svg`.
 
+## Current art
+
+From the Starlight Signal asset pack: the four stars, the four blank card fronts, the comet, the card back, the bell and the background.
+The pack's `logo.png` isn't used: its background has a grey-and-white checkerboard painted into it instead of being transparent,
+and its dark navy lettering would vanish on the dark top bar. Until a fixed one is added, the top bar shows the title as gold text.
+A logo with a truly transparent background and light (or outlined) lettering will drop straight in as `logo.png`.
+
 ## Sounds
 
 Put these in `../sounds/` (mp3, m4a, wav, ogg or webm): `flip`, `bell-right`, `bell-wrong`, `comet`, `collect`, `out`, `win`.
