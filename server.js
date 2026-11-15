@@ -344,7 +344,7 @@ io.on('connection', socket => {
 
   on('again', (p, reply) => {
     const c = ctx();
-    if (!c || !c.isHost || !c.room.game || c.room.game.phase !== 'final') return reply({ ok: false });
+    if (!c || !c.isHost || !c.room.game || !['final', 'over'].includes(c.room.game.phase)) return reply({ ok: false });
     const id = c.room.game.id;
     endGame(c.room);
     c.room.game = GAMES[id].start(gameCtx(c.room), c.room.settings[id]);
