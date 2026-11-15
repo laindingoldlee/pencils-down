@@ -4,7 +4,7 @@
  *
  * Friends meet in a party room (public/index.html), send emotes, and the host picks a game:
  *  - Games that run inside the room live in games/ and plug in through GAMES below
- *    (The Fifth Element so far).
+ *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent).
  *  - Pencils Down has its own page and server code (games/pencils-down.js). Starting it
  *    opens a Pencils Down game with the room's code and sends everyone there.
  *
@@ -22,13 +22,16 @@ const fifth = require('./games/fifth-element');
 const bw11 = require('./games/black-white-eleven');
 const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
+const ember = require('./games/ember-crown');
+const cc = require('./games/countercurrent');
+const tide = require('./games/turning-tide');
 const ss = require('./games/signal-salvage');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7, ss };                     // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ss']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember, cc, tide, ss };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc', 'tide', 'ss']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -62,14 +65,13 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
-/* Signal Salvage art, if any has been added: shield.svg, back.png, background.jpg, void-angler.png ...
-   Names are lowercase with dashes; anything missing is drawn as a placeholder. */
+/* Pictures in a folder, by name without the extension (The Ember Crown, Countercurrent The Turning Tide and Signal Salvage). */
 function loadArt(dir, urlBase) {
   const out = {};
   try {
     for (const f of fs.readdirSync(dir)) {
-      const m = f.match(/^([a-z0-9-]+)\.(svg|png|webp|jpe?g|gif)$/i);
-      if (m) out[m[1].toLowerCase()] = urlBase + f;
+      const m = f.match(/^([a-z0-9-]+)\.(webp|png|jpe?g|svg|gif)$/i);
+      if (m && !out[m[1].toLowerCase()]) out[m[1].toLowerCase()] = urlBase + f;
     }
   } catch (e) { /* no art yet */ }
   return out;
@@ -77,8 +79,17 @@ function loadArt(dir, urlBase) {
 const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
+  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') },
+  ember: {
+    art: loadArt(path.join(PUBLIC, 'games', 'ember-crown', 'art'), '/games/ember-crown/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'ember-crown', 'sounds'), '/games/ember-crown/sounds/')
+  },
+  cc: { art: loadArt(path.join(PUBLIC, 'games', 'countercurrent', 'art'), '/games/countercurrent/art/') },
+  tide: {
+    art: loadArt(path.join(PUBLIC, 'games', 'tide', 'art'), '/games/tide/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'tide', 'sounds'), '/games/tide/sounds/')
+  },
   ss: { emblems: ss.EMBLEMS, names: ss.NAMES, specialists: ss.SPECIALISTS, protocols: ss.PROTOCOLS, art: loadArt(path.join(PUBLIC, 'games', 'ss', 'art'), '/games/ss/art/') },
-  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
 };
 
 /* ---------- web server ---------- */
@@ -358,7 +369,7 @@ io.on('connection', socket => {
 
   on('again', (p, reply) => {
     const c = ctx();
-    if (!c || !c.isHost || !c.room.game || c.room.game.phase !== 'final') return reply({ ok: false });
+    if (!c || !c.isHost || !c.room.game || !['final', 'over'].includes(c.room.game.phase)) return reply({ ok: false });
     const id = c.room.game.id;
     endGame(c.room);
     c.room.game = GAMES[id].start(gameCtx(c.room), c.room.settings[id]);
