@@ -62,10 +62,22 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
+/* Signal Salvage art, if any has been added: shield.svg, back.png, background.jpg, void-angler.png ...
+   Names are lowercase with dashes; anything missing is drawn as a placeholder. */
+function loadArt(dir, urlBase) {
+  const out = {};
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/^([a-z0-9-]+)\.(svg|png|webp|jpe?g|gif)$/i);
+      if (m) out[m[1].toLowerCase()] = urlBase + f;
+    }
+  } catch (e) { /* no art yet */ }
+  return out;
+}
 const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
-  ss: { emblems: ss.EMBLEMS, names: ss.NAMES, specialists: ss.SPECIALISTS, protocols: ss.PROTOCOLS },
+  ss: { emblems: ss.EMBLEMS, names: ss.NAMES, specialists: ss.SPECIALISTS, protocols: ss.PROTOCOLS, art: loadArt(path.join(PUBLIC, 'games', 'ss', 'art'), '/games/ss/art/') },
   bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
 };
 

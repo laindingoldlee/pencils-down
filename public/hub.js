@@ -14,7 +14,7 @@ const GAME_LIST = [
     blurb: 'Five magic items, one card. Grab the right one before anyone else does.' },
   { id: 't7', name: 'The Triple Seven', players: '2+ players', ready: true,
     blurb: 'Keep your face-down cards low. Swap, peek, lock and steal. Three 7s is a perfect zero.' },
-  { id: 'ss', name: 'Signal Salvage', players: '2–8 players', ready: false,
+  { id: 'ss', name: 'Signal Salvage', players: '2–8 players', ready: true,
     blurb: 'Scan a derelict station for salvage. Push your luck: the same signal twice and your run collapses.' },
   { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
     blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
