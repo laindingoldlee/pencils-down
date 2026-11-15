@@ -20,6 +20,8 @@ const GAME_LIST = [
     blurb: 'Scout hidden waters, board rival ships and claim the most of the 4×4 chart. Tide beats Powder beats Gale beats Stone.' },
   { id: 'ss', name: 'Signal Salvage', players: '2–8 players', ready: true,
     blurb: 'Scan a derelict station for salvage. Push your luck: the same signal twice and your run collapses.' },
+  { id: 'sl', name: 'Starlight Signal', players: '2–6 players', ready: true,
+    blurb: 'Flip star cards and race to the bell when one colour shows exactly five stars. A comet makes it four.' },
   { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
     blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
   { id: 'bw11', name: 'Black, White & Eleven', players: '2+ players', ready: true,
@@ -194,7 +196,7 @@ function render() {
    (a big group, a small window), the whole game is shrunk just enough to fit. */
 const fitsScreen = () => window.innerWidth >= 900 && window.innerHeight >= 480 && matchMedia('(hover: hover) and (pointer: fine)').matches;
 function fitGame() {
-  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7, :scope > section.ec, :scope > section.cc, :scope > section.tt, :scope > section.ss');
+  const sec = $('main').querySelector(':scope > section.fe, :scope > section.bw, :scope > section.sp, :scope > section.t7, :scope > section.ec, :scope > section.cc, :scope > section.tt, :scope > section.ss, :scope > section.sl');
   const on = !!sec && fitsScreen();
   document.body.classList.toggle('fitmode', on);
   if (!sec) return;
@@ -290,13 +292,22 @@ function noticeMyMove() {
   S.lastMove = msg;
 }
 
-/* ---------- fastest Fifth Element reactions tonight ---------- */
+/* ---------- fastest reactions tonight, one list per speed game ---------- */
+const REACTION_WHAT = { fifth: 'each player’s best correct click', sl: 'each player’s best correct bell ring' };
 function reactionBoard(st) {
-  const r = st.reactions || [];
-  if (!r.length) return '';
+  const groups = (st.reactions || []).filter(x => x.list && x.list.length);
+  if (!groups.length) return '';
+  const list = r => `<ol class="tally">${r.map((x, i) => `<li><span class="place">${i + 1}</span>${player(x.pid) ? avatar(x.pid, 30) : '<span></span>'}<span class="nm">${esc((player(x.pid) || {}).name || x.name)}</span><span class="wins">${(x.best / 1000).toFixed(2)}s</span></li>`).join('')}</ol>`;
+  if (groups.length === 1) {
+    const g = groups[0];
+    return `<section class="panel">
+    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">${esc(g.name)} · ${esc(REACTION_WHAT[g.game] || 'each player’s best')}</span></header>
+    ${list(g.list)}
+  </section>`;
+  }
   return `<section class="panel">
-    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">The Fifth Element · each player’s best correct click</span></header>
-    <ol class="tally">${r.map((x, i) => `<li><span class="place">${i + 1}</span>${player(x.pid) ? avatar(x.pid, 30) : '<span></span>'}<span class="nm">${esc((player(x.pid) || {}).name || x.name)}</span><span class="wins">${(x.best / 1000).toFixed(2)}s</span></li>`).join('')}</ol>
+    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">Each player’s best, game by game</span></header>
+    <div class="board">${groups.map(g => `<div><h3 class="boardh">${esc(g.name)} <small class="muted">· ${esc(REACTION_WHAT[g.game] || 'best')}</small></h3>${list(g.list)}</div>`).join('')}</div>
   </section>`;
 }
 

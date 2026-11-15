@@ -4,7 +4,8 @@
  *
  * Friends meet in a party room (public/index.html), send emotes, and the host picks a game:
  *  - Games that run inside the room live in games/ and plug in through GAMES below
- *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent).
+ *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent,
+ *    The Ember Crown, The Turning Tide, Signal Salvage, Starlight Signal).
  *  - Pencils Down has its own page and server code (games/pencils-down.js). Starting it
  *    opens a Pencils Down game with the room's code and sends everyone there.
  *
@@ -27,12 +28,13 @@ const ember = require('./games/ember-crown');
 const cc = require('./games/countercurrent');
 const tide = require('./games/turning-tide');
 const ss = require('./games/signal-salvage');
+const sl = require('./games/starlight-signal');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7, ember, cc, tide, ss };                       // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc', 'tide', 'ss']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember, cc, tide, ss, sl };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc', 'tide', 'ss', 'sl']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -68,7 +70,7 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
-/* Pictures in a folder, by name without the extension (The Ember Crown, Countercurrent The Turning Tide and Signal Salvage). */
+/* Pictures in a folder, by name without the extension (The Ember Crown, Countercurrent, The Turning Tide, Signal Salvage and Starlight Signal). */
 function loadArt(dir, urlBase) {
   const out = {};
   try {
@@ -93,6 +95,11 @@ const CATALOG = {
     sounds: loadSounds(path.join(PUBLIC, 'games', 'tide', 'sounds'), '/games/tide/sounds/')
   },
   ss: { emblems: ss.EMBLEMS, names: ss.NAMES, specialists: ss.SPECIALISTS, protocols: ss.PROTOCOLS, art: loadArt(path.join(PUBLIC, 'games', 'ss', 'art'), '/games/ss/art/') },
+  sl: {
+    flipTimes: sl.FLIP_TIMES,
+    art: loadArt(path.join(PUBLIC, 'games', 'starlight', 'art'), '/games/starlight/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'starlight', 'sounds'), '/games/starlight/sounds/')
+  },
 };
 
 /* ---------- web server ---------- */
@@ -166,7 +173,7 @@ function makeRoom(code) {
     game: null,          // a game being played inside the room
     pencils: false,      // a Pencils Down game was opened from this room
     wins: [],            // tonight's results, for the room scoreboard
-    reactions: {},       // fastest Fifth Element reaction per player tonight
+    reactions: {},       // fastest reaction per player tonight, per game: { fifth: { pid: {...} }, sl: {...} }
     hostTimer: null, lastActive: Date.now()
   };
   rooms.set(code, room);
@@ -183,12 +190,14 @@ function publicState(room, forPid) {
     settings: room.settings,
     pencils: room.pencils,
     wins: room.wins,
-    reactions: Object.values(room.reactions).sort((a, b) => a.best - b.best),
+    reactions: Object.entries(room.reactions).map(([game, byPid]) => ({
+      game, name: GAME_NAMES[game] || game, list: Object.values(byPid).sort((a, b) => a.best - b.best)
+    })),
     game: room.game ? GAMES[room.game.id].view(room.game, forPid) : null,
     serverNow: Date.now()
   };
 }
-const GAME_NAMES = { pencils: 'Pencils Down', fifth: 'The Fifth Element', bw11: 'Black, White & Eleven', spell: 'Spellbound Mayhem', t7: 'The Triple Seven' };
+const GAME_NAMES = { pencils: 'Pencils Down', fifth: 'The Fifth Element', bw11: 'Black, White & Eleven', spell: 'Spellbound Mayhem', t7: 'The Triple Seven', sl: 'Starlight Signal' };
 function recordWin(room, game, winners, names) {
   room.wins.push({ game, name: GAME_NAMES[game] || game, at: Date.now(),
     winners: winners.map(pid => ({ pid, name: (names && names[pid]) || (room.players.get(pid) || {}).name || 'Someone' })) });
@@ -203,11 +212,15 @@ function broadcast(room) {
     if (w) {
       g.recorded = true;
       recordWin(room, g.id, w);
-      // Fifth Element: keep each player's fastest reaction of the night.
-      if (g.id === 'fifth') for (const r of fifth.reactionStats(g)) {
-        const cur = room.reactions[r.pid];
-        const name = (room.players.get(r.pid) || {}).name || 'Someone';
-        if (!cur || r.best < cur.best) room.reactions[r.pid] = { pid: r.pid, name, best: r.best };
+      // Speed games (The Fifth Element, Starlight Signal): keep each player's fastest reaction of the night.
+      if (GAMES[g.id].reactionStats) {
+        const byPid = room.reactions[g.id] || (room.reactions[g.id] = {});
+        for (const r of GAMES[g.id].reactionStats(g)) {
+          if (r.best == null) continue;
+          const cur = byPid[r.pid];
+          const name = (room.players.get(r.pid) || {}).name || 'Someone';
+          if (!cur || r.best < cur.best) byPid[r.pid] = { pid: r.pid, name, best: r.best };
+        }
       }
     }
   }
