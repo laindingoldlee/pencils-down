@@ -192,6 +192,17 @@
 @keyframes spfade{from{opacity:0}to{opacity:1}}
 @media (prefers-reduced-motion: reduce){.sp-wheel{animation-duration:.01s}.sp-spin-result{animation-delay:0s}}
 
+/* card details shown when hovering (or tapping) a visible stone */
+.sp-hovercard{position:fixed;z-index:47;pointer-events:none;display:flex;gap:12px;align-items:flex-start;width:min(330px,calc(100vw - 16px));
+  background:#1E0A1C;color:#FBEFF6;border:1.5px solid #F0C75E;border-radius:14px;padding:10px;box-shadow:0 14px 30px rgba(0,0,0,.6);
+  font-family:"Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+.sp-hovercard img{width:92px;aspect-ratio:240/322;object-fit:cover;border-radius:8px;flex:none}
+.sp-hovercard .txt{display:grid;gap:5px;font-size:.88rem;line-height:1.4}
+.sp-hovercard b{color:#F0C75E;font-size:1rem}
+.sp-hovercard .extra{color:#FF8A80}
+.sp-hovercard small{color:#D3B3C7}
+.sp .spseat .stone.art,.sp .sp-cast .prow{cursor:help}
+
 /* calling a spell: the bubble, and the stone flying to its row */
 .sp-call{position:fixed;z-index:46;pointer-events:none;display:flex;align-items:center;gap:10px;transform:translate(-50%,-50%) scale(.3);opacity:0;
   background:#1E0A1C;color:#FBEFF6;border:2px solid #F0C75E;border-radius:999px;padding:8px 22px;box-shadow:0 12px 30px rgba(0,0,0,.55);white-space:nowrap;
@@ -209,3 +220,9 @@
 .sp-flycard.shown .cap{opacity:1}
 .sp-flycard.shown .front{box-shadow:0 0 0 3px #F0C75E,0 0 34px rgba(240,199,94,.8)}
 .sp-cast img.incoming{visibility:hidden}
+/* big tables: keep your own seat from growing into your neighbours' */
+.sp.fitted .sp-round.some .spspot.mine{--cw:clamp(30px,calc(var(--fit-h) * .058),48px)}
+.sp.fitted .sp-round.many .spspot.mine{--cw:clamp(28px,calc(var(--fit-h) * .048),40px)}
+/* 7+ players: cards stop growing past a size where seats around the table would touch */
+.sp.fitted .sp-round.many{--cw:clamp(22px,calc(var(--fit-h) * .046),32px)}
+.sp.fitted .sp-round.many .spspot.mine{--cw:clamp(26px,calc(var(--fit-h) * .044),34px)}

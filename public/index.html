@@ -34,7 +34,6 @@
 *{box-sizing:border-box}
 html,body{min-height:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:16px;line-height:1.45;padding-top:env(safe-area-inset-top,0px)}
-body.inroom{padding-bottom:calc(76px + env(safe-area-inset-bottom,0px))}
 [hidden]{display:none!important}
 button,input,select{font:inherit;color:inherit}
 button{cursor:pointer}
@@ -90,11 +89,38 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .crowd{list-style:none;margin:0;padding:18px 20px 20px;display:grid;grid-template-columns:repeat(auto-fill,minmax(84px,1fr));gap:18px 10px}
 .crowd li{display:flex;flex-direction:column;align-items:center;gap:6px;min-width:0;text-align:center}
 .crowd .nm{font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.board{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px 24px;padding:12px 20px 18px}
+@media (max-width:620px){.board{grid-template-columns:minmax(0,1fr);padding-inline:16px}}
+.tally,.recent{list-style:none;margin:0;padding:0}
+.panel > .tally{padding:8px 20px 14px}
+.tally li{display:grid;grid-template-columns:2rem auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--line)}
+.tally .place{font-family:var(--font-display);color:var(--ink-soft);text-align:center}
+.tally li:first-child .place{background:var(--mark);color:var(--on-mark);border-radius:6px}
+.tally .nm{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tally .wins{font-family:var(--font-display);color:var(--brand)}
+.recent li{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px dashed var(--line);font-size:.92rem}
+.recent li span{color:var(--ink-soft);text-align:right}
+.avbtn{position:relative;border:0;background:none;padding:0;border-radius:50%}
+.avbtn .pen{position:absolute;right:-4px;bottom:-2px;width:22px;height:22px;border-radius:50%;background:var(--panel);border:1.5px solid var(--line-strong);display:grid;place-items:center;font-size:.75rem;color:var(--ink)}
+.dlg{position:fixed;inset:0;z-index:50;background:var(--scrim);display:grid;place-items:center;padding:16px}
+.dlgcard{background:var(--panel);color:var(--ink);border-radius:16px;padding:20px 22px;display:grid;gap:14px;width:min(380px,100%);box-shadow:var(--shadow)}
+.dlgcard .field input{width:100%}
+.dlgrow{display:flex;gap:10px}
+.swatches{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+.sw{aspect-ratio:1;border-radius:50%;border:3px solid transparent;background:hsl(var(--hue) 70% 58%);box-shadow:inset 0 -3px 0 hsl(var(--hue) 60% 42%)}
+.sw[aria-pressed="true"]{border-color:var(--ink);outline:2px solid var(--panel);outline-offset:-5px}
+.crowd .sub .linkbtn{display:block;margin:0 auto}
 .crowd .sub{font-size:.78rem;color:var(--ink-soft);margin-top:-4px}
 
 /* invite */
 .invite{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .code{font-family:var(--font-display);font-size:2rem;letter-spacing:.12em;line-height:1.1}
+.invitebox{display:flex;gap:16px 24px;align-items:center;justify-content:space-between;flex-wrap:wrap;padding:16px 20px}
+.invitetext{display:grid;gap:8px;justify-items:start;min-width:0}
+.invitetext code{font-size:.95rem;background:var(--hilite);padding:6px 10px;border-radius:6px;overflow-wrap:anywhere;user-select:all}
+.qr{margin:0;display:grid;justify-items:center;gap:4px}
+.qr img{width:132px;height:132px;border-radius:10px;background:#fff;padding:6px;box-shadow:var(--shadow);display:block}
+.qr figcaption{font-size:.8rem;font-weight:700;color:var(--ink-soft)}
 .linkline{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:0 20px 16px}
 .linkline code{font-size:.95rem;background:var(--hilite);padding:6px 10px;border-radius:6px;overflow-wrap:anywhere;min-width:0;user-select:all}
 
@@ -118,7 +144,9 @@ h1,h2,h3{text-wrap:balance;margin:0}
 .seg button+button{border-left:1.5px solid var(--ink)}
 .seg button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .seg button:disabled{cursor:default}
-.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.themes{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;align-items:start;grid-auto-rows:min-content}
+.themes .theme{align-content:start}
+.setting.stack:has(.themes){flex-wrap:nowrap}
 .theme{border:2px solid var(--line);border-radius:10px;background:var(--felt);color:var(--felt-ink);padding:10px 12px;display:grid;gap:8px;text-align:left}
 .theme[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 35%,transparent)}
 .theme:disabled{cursor:default}
@@ -136,22 +164,6 @@ h1,h2,h3{text-wrap:balance;margin:0}
 /* near-white items: gray shading turns into darker grays, so the details still show */
 .ico.lightc::after{filter:invert(1);mix-blend-mode:multiply}
 
-/* emotes */
-.emotebar{position:fixed;left:0;right:0;bottom:0;z-index:15;display:flex;justify-content:center;padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--panel) 92%,transparent);backdrop-filter:blur(8px);border-top:1px solid var(--line)}
-.emotebar .in{display:flex;gap:4px;overflow-x:auto;max-width:100%;scrollbar-width:none}
-.emotebar button{flex:none;width:48px;height:48px;border-radius:12px;border:1px solid transparent;background:transparent;font-size:28px;line-height:1;display:grid;place-items:center;padding:0;transition:transform .12s}
-.emotebar button:hover{background:var(--hilite);border-color:var(--line)}
-.emotebar button:active{transform:scale(.88)}
-.emotebar button.cool{opacity:.45}
-.emotebar img,.floatemote img{width:88%;height:88%;object-fit:contain;display:block}
-.emotebar .in img{pointer-events:none}
-/* hover an emote to see its name; on phones the name sits under it in the grid */
-.emotebar .in{flex-wrap:wrap;justify-content:center;overflow:visible}
-.emotebar .in button{position:relative}
-.emotebar .elbl{display:none}
-.emotebar .in button::after{content:attr(data-label);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);z-index:2;
-  background:var(--ink);color:var(--panel);font:700 .8rem var(--font-body);padding:4px 9px;border-radius:7px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .1s}
-.emotebar .in button:focus-visible::after{opacity:1}
 /* game screens on a computer fill the window (see fitGame in hub.js) */
 body.fitmode .shell{padding-bottom:0}
 .fitted{margin-bottom:0!important;overflow:hidden}
@@ -164,52 +176,18 @@ body.fitmode .shell{padding-bottom:0}
   background:#150F1F;color:#EFEAF8;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:12px 14px;box-shadow:0 14px 30px rgba(0,0,0,.55);text-align:left}
 .dd > .ddbody ol,.dd > .ddbody ul{margin:0;max-height:none}
 .dd > .ddbody ul + ul{margin-top:8px}
-.emotebar .etoggle{display:none}
-.floatemote:has(img){width:190px;height:190px;margin-left:-95px}
-@media (max-width:620px){.floatemote:has(img){width:140px;height:140px;margin-left:-70px}}
-/* hovering an emote in the bar shows it large until the mouse moves away */
-.emotepreview{position:fixed;z-index:35;pointer-events:none;display:grid;justify-items:center;gap:4px;transform:translateX(-50%);
-  background:var(--panel);border:1px solid var(--line-strong);border-radius:16px;padding:10px 12px 8px;box-shadow:var(--shadow)}
-.emotepreview img{width:170px;height:170px;object-fit:contain;display:block}
-.emotepreview span{font-weight:700;font-size:.95rem}
-/* phones: a button opens all the emotes in a grid above the bar */
-@media (max-width:760px){
-  .emotebar{flex-direction:column;align-items:stretch;gap:6px}
-  .emotebar .etoggle{display:flex;align-items:center;justify-content:center;gap:8px;width:auto;height:44px;margin:0 auto;padding:0 16px 0 6px;border:1.5px solid var(--line-strong);border-radius:999px;font:700 .95rem var(--font-body);color:var(--ink)}
-  .emotebar .etoggle img{width:34px;height:34px}
-  .emotebar .etoggle::after{content:"▴";font-size:.8rem;color:var(--ink-soft)}
-  .emotebar.open .etoggle::after{content:"▾"}
-  .emotebar .in{display:none;grid-template-columns:repeat(6,1fr);gap:4px;justify-items:center;max-width:420px;margin:0 auto;overflow:visible}
-  .emotebar.open .in{display:grid}
-  .emotebar .in button{width:56px;height:auto;padding:2px 0 3px;display:grid;justify-items:center;gap:1px}
-  .emotebar .in button img{width:44px;height:44px}
-  .emotebar .elbl{display:block;font:700 .62rem var(--font-body);color:var(--ink-soft);white-space:nowrap;max-width:56px;overflow:hidden;text-overflow:ellipsis}
-  .emotebar .in button::after{display:none}
-}
-.emotelayer{position:fixed;inset:0;pointer-events:none;z-index:25;overflow:hidden}
-.floatemote{position:absolute;width:80px;height:80px;margin-left:-40px;font-size:64px;line-height:80px;text-align:center;display:grid;place-items:center;
-  filter:drop-shadow(0 6px 10px rgba(0,0,0,.35));animation:floatup 4.2s cubic-bezier(.2,.8,.3,1) forwards}
-/* pops up, hangs above the avatar for a few seconds, then drifts up and fades */
-@keyframes floatup{
-  0%{transform:translateY(20px) scale(.3);opacity:0}
-  7%{transform:translateY(-8px) scale(1.12);opacity:1}
-  12%{transform:translateY(-12px) scale(1)}
-  80%{transform:translateY(-24px) scale(1);opacity:1}
-  100%{transform:translateY(-70px) scale(.95);opacity:0}
-}
 
 .toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:30;background:var(--ink);color:var(--panel);padding:10px 16px;border-radius:9px;max-width:calc(100% - 32px);box-shadow:var(--shadow)}
 
 @media (max-width:520px){
   .hero,.homeforms,.pad,.panel-head,.setting,.startrow,.games,.banner,.linkline{padding-inline:16px}
   .crowd{padding-inline:12px;grid-template-columns:repeat(auto-fill,minmax(72px,1fr))}
-  .emotebar button{width:42px;height:42px;font-size:24px}
 }
 @media (prefers-reduced-motion: reduce){
   *{transition:none!important}
-  .floatemote{animation-duration:3.5s}
 }
 </style>
+<link rel="stylesheet" href="/shared.css">
 <link rel="stylesheet" href="/games/fifth-element/style.css">
 <link rel="stylesheet" href="/games/bw11/style.css">
 <link rel="stylesheet" href="/games/spellbound/style.css">
@@ -228,6 +206,7 @@ body.fitmode .shell{padding-bottom:0}
       <span>Game Night</span>
     </a>
     <div class="roomchip" id="roomchip"></div>
+    <span id="soundSlot"></span>
   </header>
   <div class="notice" id="notice" hidden></div>
   <main id="main"></main>
@@ -237,6 +216,7 @@ body.fitmode .shell{padding-bottom:0}
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/shared.js"></script>
 <script src="/hub.js"></script>
 <script src="/games/fifth-element/client.js"></script>
 <script src="/games/bw11/client.js"></script>

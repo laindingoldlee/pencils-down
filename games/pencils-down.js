@@ -14,6 +14,7 @@
  * so its page can offer a way back to the room.
  */
 const crypto = require('crypto');
+const { wordFor } = require('./pencils-down-words');
 
 module.exports = function pencilsDown(io, opts = {}) {
 const codeTaken = opts.codeTaken || (() => false);
@@ -98,7 +99,9 @@ function cleanSettings(p, base) {
   return s;
 }
 
-const isOn = p => p.sockets.size > 0;
+// Practice bots (added in the party room) count as connected; they have no page of their own.
+const isOn = p => p.bot || p.sockets.size > 0;
+const isHuman = p => !p.bot && p.sockets.size > 0;
 // Still counted as in the game: connected now, or dropped out less than AWAY_GRACE_MS ago.
 const present = p => isOn(p) || (p.leftAt > 0 && Date.now() - p.leftAt < AWAY_GRACE_MS);
 const connectedPlayers = room => [...room.players.values()].filter(isOn);
@@ -205,7 +208,54 @@ function broadcast(room) {
 }
 
 /* ---------- game flow ---------- */
-function clearTimer(room) { if (room.timer) { clearTimeout(room.timer); room.timer = null; } }
+function clearTimer(room) {
+  if (room.timer) { clearTimeout(room.timer); room.timer = null; }
+  for (const t of room.botTimers || []) clearTimeout(t);
+  room.botTimers = [];
+}
+
+/* ---------- practice bots ----------
+   While a round runs, each bot fills its boxes one at a time from a small word bank
+   (games/pencils-down-words.js), leaving a box empty when it knows no word. It never
+   shouts stop. In review it votes out answers that don't start with the round's letter,
+   then taps Ready. */
+const rnd = (lo, hi) => lo + crypto.randomInt(Math.max(1, hi - lo));
+function botLater(room, ms, fn) { room.botTimers.push(setTimeout(safe(fn), Math.max(0, ms))); }
+function botsWrite(room) {
+  const round = room.round, len = room.settings.seconds * 1000;
+  for (const p of room.players.values()) {
+    if (!p.bot) continue;
+    room.settings.categories.forEach((cat, ci) => {
+      const word = crypto.randomInt(100) < 85 ? wordFor(cat, room.letter) : '';
+      if (!word) return;
+      botLater(room, room.startsAt - Date.now() + rnd(len * 0.15, len * 0.9), () => {
+        if (room.phase !== 'playing' || room.round !== round) return;
+        p.answers[ci] = word;
+        broadcast(room);
+      });
+    });
+  }
+}
+function botsReview(room) {
+  const round = room.round, L = room.letter;
+  for (const p of room.players.values()) {
+    if (!p.bot) continue;
+    for (const q of room.players.values()) {
+      if (q === p) continue;
+      q.answers.forEach((a, ci) => {
+        const t = String(a || '').trim();
+        if (t && answerKey(t).charAt(0).toUpperCase() !== L) p.invalid.add(q.pid + '|' + ci);
+      });
+    }
+    botLater(room, rnd(4000, 8000), () => {
+      if (room.phase !== 'review' || room.round !== round) return;
+      p.ready = true;
+      broadcast(room);
+      checkAdvance(room);
+    });
+  }
+  broadcast(room);
+}
 function cancelAdvance(room) {
   if (room.advanceTimer) { clearTimeout(room.advanceTimer); room.advanceTimer = null; }
   room.advanceAt = 0;
@@ -226,6 +276,7 @@ function startRound(room, n, keepLetter) {
   room.stopReason = null;
   for (const p of room.players.values()) { p.answers = []; p.invalid = new Set(); p.ready = false; }
   room.timer = setTimeout(safe(() => endRound(room, 'time', null)), room.endsAt - Date.now());
+  botsWrite(room);
   broadcast(room);
 }
 
@@ -242,7 +293,18 @@ function endRound(room, reason, pid) {
     if (room.phase !== 'collecting') return;
     room.phase = 'review';
     broadcast(room);
+    botsReview(room);
   }), COLLECT_MS);
+}
+
+/* Tell the party room who won, for its scoreboard (only games opened from a party room). */
+function reportFinal(room) {
+  if (!room.party || !opts.onFinal || !room.history.length) return;
+  const tot = totals(room);
+  const ids = Object.keys(tot);
+  if (!ids.length) return;
+  const top = Math.max(...ids.map(id => tot[id]));
+  try { opts.onFinal(room.party, ids.filter(id => tot[id] === top), room.names); } catch (e) { console.error('Scoreboard:', e); }
 }
 
 function advance(room) {
@@ -252,6 +314,7 @@ function advance(room) {
   if (room.round >= room.settings.rounds) {
     clearTimer(room);
     room.phase = 'final';
+    reportFinal(room);
     broadcast(room);
   } else {
     startRound(room, room.round + 1);
@@ -280,8 +343,8 @@ function checkAdvance(room) {
 
 function ensureHost(room) {
   const host = room.players.get(room.hostPid);
-  if (host && isOn(host)) return;
-  const next = orderedPlayers(room).find(isOn);
+  if (host && isHuman(host)) return;
+  const next = orderedPlayers(room).find(isHuman);
   if (next) room.hostPid = next.pid;
   else if (!host) room.hostPid = null;
 }
@@ -414,6 +477,7 @@ nsp.on('connection', socket => {
     if (!isId(pid) || !isId(secret)) return reply({ ok: false, error: 'Reload the page and try again.' });
     if (!name) return reply({ ok: false, error: 'Type a name first.' });
     let pl = room.players.get(pid);
+    if (pl && pl.bot) return reply({ ok: false, error: 'Reload the page and try again.' });
     if (pl && pl.secret && pl.secret !== secret) return reply({ ok: false, error: 'Reload the page and try again.' });
     if (!pl) {
       if (room.players.size >= MAX_PLAYERS) return reply({ ok: false, error: 'This game is full. Twelve players is the limit.' });
@@ -550,6 +614,7 @@ nsp.on('connection', socket => {
     clearTimer(c.room);
     cancelAdvance(c.room);
     c.room.phase = 'final';
+    reportFinal(c.room);
     broadcast(c.room);
     reply({ ok: true });
   });
@@ -580,6 +645,16 @@ nsp.on('connection', socket => {
     reply({ ok: true });
   });
 
+  // Emotes, the same ones as in the party room.
+  on('emote', (p, reply) => {
+    const c = ctx();
+    const t = Date.now();
+    if (!c || !(opts.emotes || []).includes(p.id) || t - (socket.data.emoteAt || 0) < 600) return reply({ ok: false });
+    socket.data.emoteAt = t;
+    nsp.to(c.room.code).emit('emote', { pid: c.me.pid, id: p.id });
+    reply({ ok: true });
+  }, { noResync: true });
+
   on('leave', (p, reply) => {
     const c = ctx();
     if (!c) return reply({ ok: true });
@@ -596,7 +671,7 @@ nsp.on('connection', socket => {
 setInterval(safe(() => {
   const t = Date.now();
   for (const room of rooms.values()) {
-    const anyone = connectedPlayers(room).length > 0;
+    const anyone = [...room.players.values()].some(isHuman);
     if (!anyone && t - room.lastActive > ROOM_IDLE_MS) {
       clearTimer(room); cancelAdvance(room); clearTimeout(room.hostTimer);
       rooms.delete(room.code);
@@ -615,7 +690,7 @@ setInterval(safe(() => {
 /* ---------- used by party rooms ---------- */
 /* Open a fresh Pencils Down game with the party room's code. The party host becomes
    this game's host when they arrive; if they don't, the first player here takes over. */
-function prepareRoom(code, hostPid) {
+function prepareRoom(code, hostPid, bots) {
   const old = rooms.get(code);
   if (old) {
     clearTimer(old); cancelAdvance(old); clearTimeout(old.hostTimer);
@@ -624,6 +699,12 @@ function prepareRoom(code, hostPid) {
   const room = makeRoom(code);
   room.party = code;
   room.hostPid = isId(hostPid) ? hostPid : null;
+  for (const b of (bots || []).slice(0, MAX_PLAYERS - 1)) {
+    const p = newPlayer(b.pid, null, str(b.name, 20) || 'Bot', Date.now());
+    p.bot = true;
+    room.players.set(b.pid, p);
+    room.names[b.pid] = p.name;
+  }
   room.hostTimer = setTimeout(safe(() => {
     const h = room.players.get(room.hostPid);
     if (!h || !isOn(h)) { room.hostPid = null; ensureHost(room); broadcast(room); }

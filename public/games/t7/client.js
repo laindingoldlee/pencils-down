@@ -109,6 +109,11 @@ async function move(p) {
   if (!r.ok && r.error) H.toast(r.error);
   return r;
 }
+H.on('t7-endnow', b => {
+  if (!H.armed('t7end')) return H.arm('t7end');
+  b.disabled = true;
+  H.emit('endNow');
+});
 H.on('t7-draw', b => { b.disabled = true; move({ a: 'draw' }); });
 H.on('t7-call-now', b => {
   if (!H.armed('t7call')) return H.arm('t7call');
@@ -229,7 +234,7 @@ function render(main, st) {
       <div class="t7-top"><div class="t7-title">The Triple Seven<small>${g.settings.rounds > 1 ? `Round ${g.round} of ${g.settings.rounds}` : ''}</small></div>
         ${H.dd('t7-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 't7-log')}
         ${H.dd('t7-rules', 'How to play', rulesList(g.settings) + `<ul>${ORDER.filter(r => g.settings.powers[r] !== false).map(r => `<li><b>${rankName(r)}</b>: ${esc(POWER[r].long)}</li>`).join('')}</ul>`, 't7-rules')}
-        ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
+        ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('t7end') ? ' armed' : ''}" data-act="t7-endnow">${H.armed('t7end') ? 'Tap again to end now' : 'End game'}</button>` : ''}</div>
       ${cols ? center : ''}
       <div class="t7-round ${size}${cols ? ' cols' : ''}">
         <div class="t7-felt" aria-hidden="true"></div>
@@ -292,17 +297,29 @@ function actHTML(g, st, pickPlayers) {
   return `<div class="t7-act"><h3>…</h3></div>`;
 }
 
+const cardValue = r => (r === '7' ? 0 : r === 'A' ? 1 : ['J', 'Q', 'K', 'X'].includes(r) ? 10 : Number(r));
 function summaryHTML(g, st) {
   const s = g.summary;
   const ranked = g.order.slice().sort((a, b) => g.totals[a] - g.totals[b]);
+  // Each player's cards are turned over one at a time, with their values adding up to the score.
+  // This plays once per round; later redraws show it finished.
+  const animate = L.breakdownRound !== g.round;
+  L.breakdownRound = g.round;
+  let step = 0;
+  const STEP = 0.22;
   let place = 0, prev = null;
   const rows = ranked.map((pid, i) => {
     if (g.totals[pid] !== prev) { place = i + 1; prev = g.totals[pid]; }
-    const pen = s && s.penalty && s.caller === pid ? ` <span class="pen">+${s.penalty} penalty</span>` : '';
-    const round = s ? `${s.scores[pid]} this round${pen}` : '';
-    return `<li><span class="pl">${place}</span>${H.avatar(pid, 30)}<span>${esc(nm(pid, st))}<br><small class="muted">${round}</small></span><span class="pt">${g.totals[pid]}</span></li>`;
+    const pen = s && s.penalty && s.caller === pid ? `<span class="pen">+${s.penalty} penalty</span>` : '';
+    const cards = (g.rows[pid] || []).filter(c => c.face).map(c => {
+      const d = animate ? ` style="animation-delay:${(step++ * STEP).toFixed(2)}s"` : '';
+      return `<span class="bdcard${animate ? ' anim' : ''}"${d}>${cardHTML(c.face, { size: 'tiny' })}<b>${cardValue(c.face.r)}</b></span>`;
+    }).join('<span class="bdplus">+</span>');
+    const totalDelay = animate ? ` style="animation-delay:${(step * STEP).toFixed(2)}s"` : '';
+    const round = s ? `<span class="bdsum${animate ? ' anim' : ''}"${totalDelay}>= ${s.scores[pid]}${pen}</span>` : '';
+    return `<li><span class="pl">${place}</span>${H.avatar(pid, 30)}<span class="bdwho">${esc(nm(pid, st))}<span class="bdrow">${cards}${round}</span></span><span class="pt">${g.totals[pid]}</span></li>`;
   }).join('');
-  const why = s ? (s.why === 'call' ? `${esc(nm(s.caller, st))} called last round.${s.penalty ? ' They weren’t the lowest!' : ' They were right.'}` : 'The pile ran out.') : '';
+  const why = s && s.why === 'ended' ? 'The host ended the game. Scores are from the cards as they were.' : s ? (s.why === 'call' ? `${esc(nm(s.caller, st))} called last round.${s.penalty ? ' They weren’t the lowest!' : ' They were right.'}` : 'The pile ran out.') : '';
   if (g.phase === 'over') {
     const w = (g.winners || []).map(p => esc(nm(p, st)));
     return `<div class="t7-act"><div class="t7-winner">${w.length > 1 ? `${w.join(' & ')} tie!` : `${w[0] === 'You' ? 'You win' : w[0] + ' wins'}!`}</div>
@@ -372,6 +389,11 @@ function fx(e) {
 }
 
 Hub.registerGame('t7', {
+  myMove(st) {
+    const g = st.game, t = g.turn;
+    if (g.phase === 'peek' && g.order.includes(st.you) && !g.peeked.includes(st.you)) return 'Look at a card';
+    return g.phase === 'play' && t && t.pid === st.you ? 'Your turn' : '';
+  },
   title: 'The Triple Seven',
   settings,
   render,

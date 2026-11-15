@@ -103,12 +103,6 @@ function startTurn(g, pid) {
     g.ctx.fx({ type: 'silenced', pid });
     return nextTurn(g);
   }
-  const curser = g.status[pid].curse;
-  if (curser) {
-    log(g, { k: 'curse-tick', pid, by: curser });
-    damage(g, pid, 1, curser);
-    if (checkRoundEnd(g)) return;
-  }
   watchAway(g);
   g.ctx.broadcast();
 }
@@ -219,6 +213,7 @@ function pick(g, pid, p) {
         return { ok: true, hit: false };
       }
       damage(g, pid, 1, pid);
+      curseBite(g, pid);
       if (!checkRoundEnd(g)) endTurn(g);
       return { ok: true, hit: false };
     }
@@ -256,11 +251,20 @@ function pick(g, pid, p) {
   return { ok: false };
 }
 
+/* Curse: while cursed, every wrong guess costs one more life (credited to whoever cast the curse). */
+function curseBite(g, pid) {
+  const curser = g.status[pid].curse;
+  if (!curser || g.lives[pid] <= 0) return;
+  log(g, { k: 'curse-tick', pid, by: curser });
+  damage(g, pid, 1, curser);
+}
+
 function finishSpin(g) {
   const t = g.turn;
   if (g.phase !== 'play' || !t || t.step !== 'spin') return;
   g.timer = null;
   damage(g, t.pid, t.spin, t.pid);
+  curseBite(g, t.pid);
   t.spin = 0;
   if (!checkRoundEnd(g)) endTurn(g);
 }
@@ -310,6 +314,65 @@ function resolve(g, pid, n, targets) {
   g.ctx.broadcast();
 }
 
+/* ---------- bots ----------
+   A practice opponent. It decides only from view(g, pid), i.e. what its seat can see:
+   everyone else's stones, the discard pile and its own known stones. It guesses the
+   spell it most likely holds (copies not seen anywhere else), and after a success
+   sometimes stops while it's ahead instead of always pushing on. */
+function botOdds(v, pid) {
+  const seen = Array(SPELLS + 1).fill(0);
+  for (const n of v.discard) seen[n] += 1;
+  for (const p of v.order) for (const x of v.racks[p]) if (x.n) seen[x.n] += 1;
+  const total = v.settings.copies.reduce((a, b) => a + b, 0);
+  const unseen = total - seen.reduce((a, b) => a + b, 0);
+  const mine = v.racks[pid];
+  const known = new Set(mine.filter(x => x.n).map(x => x.n));
+  const k = mine.filter(x => !x.n).length;   // stones on my rack I can't see
+  const odds = {};
+  for (let n = 1; n <= SPELLS; n++) {
+    if (known.has(n)) { odds[n] = 1; continue; }
+    const left = Math.max(0, v.settings.copies[n - 1] - seen[n]);
+    let miss = 1;
+    for (let i = 0; i < k; i++) miss *= unseen - i > 0 ? Math.max(0, unseen - left - i) / (unseen - i) : 0;
+    odds[n] = left && k ? 1 - miss : 0;
+  }
+  return odds;
+}
+function bot(g, pid) {
+  if (g.phase !== 'play' || !g.turn || g.turn.pid !== pid) return null;
+  const v = view(g, pid), t = v.turn;
+  if (t.step === 'target') {
+    const opp = v.order.filter(p => p !== pid);
+    const want = Math.min(NEEDS[t.spell], opp.length);
+    // Go after whoever is closest to being knocked out (a knock-out scores), ties at random.
+    const ranked = shuffle(opp.slice()).sort((a, b) => {
+      if (t.spell === 4) { const ca = v.status[a].curse ? 1 : 0, cb = v.status[b].curse ? 1 : 0; if (ca !== cb) return ca - cb; }
+      if (t.spell === 5) { const sa = v.status[a].silenced ? 1 : 0, sb = v.status[b].silenced ? 1 : 0; if (sa !== sb) return sa - sb; }
+      return v.lives[a] - v.lives[b];
+    });
+    return { move: { a: 'target', targets: ranked.slice(0, want) } };
+  }
+  if (t.step !== 'cast') return null;   // the 1-2-3 wheel is spinning
+  const odds = botOdds(v, pid);
+  const lo = v.settings.ascending ? Math.max(1, t.last) : 1;
+  const legal = [];
+  for (let n = lo; n <= SPELLS; n++) legal.push(n);
+  // A wrong 1 spins for 1-3 lives, so it needs better odds than the others.
+  const score = n => odds[n] * (n === 1 && odds[1] < 1 ? 0.6 : 1);
+  const ranked = shuffle(legal.slice()).sort((a, b) => score(b) - score(a));
+  const best = ranked[0], p = odds[best];
+  if (t.casts > 0) {
+    const lives = v.lives[pid];
+    const clears = v.racks[pid].length === 1;
+    const push = p >= 1 || (clears && p >= 0.35) ||
+      (p >= (lives <= 2 ? 0.75 : 0.5) && Math.random() < 0.8);
+    if (!push) return { move: { a: 'end' } };
+  }
+  // Mostly the best guess; now and then the runner-up if it's close.
+  const pickN = ranked[1] !== undefined && score(ranked[1]) > 0 && score(ranked[1]) >= score(best) - 0.1 && Math.random() < 0.3 ? ranked[1] : best;
+  return { move: { a: 'cast', spell: pickN } };
+}
+
 function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
@@ -341,6 +404,7 @@ function view(g, viewer) {
 module.exports = {
   id: 'spell', name: 'Spellbound Mayhem', minPlayers: 2,
   defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
+  result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _startRound: startRound, _finishSpin: finishSpin // for tests
 };

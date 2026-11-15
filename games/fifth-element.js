@@ -121,7 +121,8 @@ function start(ctx, settings) {
     deck: shuffle(allCards()).slice(0, settings.deck), dealt: 0,
     phase: 'ready', revealAt: 0, shownAt: 0, seq: 0,
     card: null, pot: 0, locked: new Set(), result: null,
-    piles: {}, burned: 0, sudden: null, winner: null, timer: null
+    piles: {}, burned: 0, sudden: null, winner: null, timer: null,
+    times: {}            // every correct reaction per player, in ms, for the leaderboard
   };
   for (const pid of ctx.playerIds()) g.piles[pid] = 0;
   queueNext(g, FIRST_READY_MS);
@@ -160,6 +161,16 @@ function canPlay(g, pid) { return !g.sudden || g.sudden.includes(pid); }
 function eligible(g) { return g.ctx.onlineIds().filter(pid => canPlay(g, pid)); }
 
 function pick(g, pid, payload) {
+  // Clicked just after someone else won this card: no effect on the game, but tell the player
+  // their own reaction time (timed the same way as the winner's) and whether they had it right.
+  if (g.phase === 'result' && payload.seq === g.seq && g.result && g.result.winner && g.result.winner !== pid && !g.locked.has(pid)) {
+    if (g.lateSeen && g.lateSeen.seq === g.seq && g.lateSeen.pids.has(pid)) return { ok: false, late: true };
+    if (!g.lateSeen || g.lateSeen.seq !== g.seq) g.lateSeen = { seq: g.seq, pids: new Set() };
+    g.lateSeen.pids.add(pid);
+    const correct = Number(payload.item) === g.result.answer, ms = Date.now() - g.shownAt;
+    if (correct) (g.times[pid] = g.times[pid] || []).push(ms);
+    return { ok: false, late: true, correct, ms, winnerMs: g.result.ms };
+  }
   if (g.phase !== 'card' || payload.seq !== g.seq) return { ok: false, late: true };
   if (!canPlay(g, pid)) return { ok: false, error: 'Only the tied players play the sudden-death card.' };
   if (g.locked.has(pid)) return { ok: false, error: 'You’re locked out of this card.' };
@@ -174,6 +185,7 @@ function pick(g, pid, payload) {
     g.pot = 0;
     g.phase = 'result';
     g.result = { winner: pid, answer: item, cards: won, ms: Date.now() - g.shownAt };
+    (g.times[pid] = g.times[pid] || []).push(g.result.ms);
     g.ctx.fx({ type: 'win', pid, n: won });
     g.timer = g.sudden
       ? setTimeout(safe(() => finish(g, pid)), RESULT_MS)
@@ -250,6 +262,13 @@ function playerJoined(g, pid) {
   if (!(pid in g.piles) && g.phase !== 'final') g.piles[pid] = 0;
 }
 
+/* Fastest and average correct reaction per player, fastest first. */
+function reactionStats(g) {
+  return Object.entries(g.times).filter(([, t]) => t.length).map(([pid, t]) => ({
+    pid, best: Math.min(...t), avg: Math.round(t.reduce((a, b) => a + b, 0) / t.length), n: t.length
+  })).sort((a, b) => a.best - b.best);
+}
+
 /* What each player's page gets. The answer stays on the server until the card is over,
    and the card itself until the moment it is revealed. */
 function view(g) {
@@ -271,13 +290,61 @@ function view(g) {
     result: g.phase === 'result' ? g.result : null,
     sudden: g.sudden,
     winner: g.phase === 'final' ? g.winner : null,
-    burned: g.burned
+    burned: g.burned,
+    reactions: g.phase === 'final' ? reactionStats(g) : null
   };
+}
+
+/* ---------- bots ----------
+   A practice opponent with a human-ish reaction time. It works the answer out from the
+   card exactly as everyone sees it (view()), takes 2-5 seconds (a bit longer when both
+   items are in the wrong color, so the answer is the "fifth" one) and clicks a wrong item
+   about 15% of the time, which also burns one of its cards, like anyone else's.
+
+   The server asks bot() once to schedule a move and again when the timer fires, and plays
+   whatever that second answer is straight away. A timer set for one card can fire on the
+   next one (someone else won it first), so the bot remembers whether its last answer was a
+   plan; if so this call is the timer firing, and a move that isn't due yet returns null.
+   The server then asks again right away and gets the remaining wait. */
+const BOT_REACT_MS = [2000, 5000];
+const BOT_HARD_MS = 800;
+const BOT_WRONG = 0.15;
+const botState = new WeakMap();   // game -> { pid: { expecting, seq, at, item } }
+function answerOf(shows) {
+  const own = shows.find(s => s.item === s.color);
+  if (own) return own.item;
+  return [0, 1, 2, 3, 4].find(k => !shows.some(s => s.item === k || s.color === k));
+}
+function bot(g, pid) {
+  let all = botState.get(g);
+  if (!all) botState.set(g, all = {});
+  const st = all[pid] || (all[pid] = { expecting: false, seq: -1 });
+  const fromTimer = st.expecting;
+  st.expecting = false;
+  const v = view(g);
+  if (v.phase !== 'card' || !v.card) return null;
+  if (v.sudden && !v.sudden.includes(pid)) return null;
+  if (v.locked.includes(pid)) return null;
+  if (st.seq !== v.seq) {
+    const right = answerOf(v.card.shows);
+    const hard = !v.card.shows.some(s => s.item === s.color);
+    const wrong = [0, 1, 2, 3, 4].filter(k => k !== right);
+    st.seq = v.seq;
+    st.item = Math.random() < BOT_WRONG ? wrong[crypto.randomInt(wrong.length)] : right;
+    st.at = v.shownAt + between(...BOT_REACT_MS) + (hard ? BOT_HARD_MS : 0);
+  }
+  const wait = st.at - Date.now();
+  const move = { seq: st.seq, item: st.item };
+  if (fromTimer) return wait > 0 ? null : { move };
+  st.expecting = true;
+  return { move, delay: Math.max(0, wait) };
 }
 
 module.exports = {
   id: 'fifth', name: 'The Fifth Element', minPlayers: 2,
   THEMES, DECK_SIZES, defaults, cleanSettings,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
+  result: g => (g.phase === 'final' ? (g.winner ? [g.winner] : []) : null),
+  reactionStats,
   allCards // for tests
 };

@@ -17,6 +17,7 @@ const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
+const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 const pencilsDownServer = require('./games/pencils-down');
 const fifth = require('./games/fifth-element');
@@ -41,6 +42,8 @@ const DROP_MS = 2 * 60 * 1000;            // forget players who left the room mo
 const ROOM_IDLE_MS = 3 * 60 * 60 * 1000;  // forget rooms nobody has been in for 3 hours
 const HOST_GRACE_MS = 15 * 1000;          // give a disconnected host 15s to come back
 const EMOTE_GAP_MS = 600;                 // one emote per player this often
+const MAX_BOTS = 8;
+const BOT_NAMES = ['Ada', 'Bolt', 'Cog', 'Dot', 'Echo', 'Fizz', 'Gizmo', 'Hex', 'Iris', 'Jinx', 'Kilo', 'Luma'];
 
 /* ---------- emotes ---------- */
 function loadEmotes() {
@@ -104,6 +107,15 @@ const app = express();
 app.disable('x-powered-by');
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
 app.get('/catalog.json', (req, res) => { res.set('Cache-Control', 'no-cache'); res.json(CATALOG); });
+/* A QR code for a room's invite link, so friends in the same room can scan it. */
+app.get(/^\/qr\/([A-Za-z]{4})\.svg$/, (req, res) => {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  if (!/^[A-Za-z0-9.:-]{1,200}$/.test(host) || !/^https?$/.test(proto)) return res.status(400).end();
+  QRCode.toString(`${proto}://${host}/${req.params[0].toUpperCase()}`, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#221A4D', light: '#FFFFFF' } })
+    .then(svg => { res.set('Cache-Control', 'public, max-age=3600'); res.type('image/svg+xml').send(svg); })
+    .catch(() => res.status(500).end());
+});
 app.use(express.static(PUBLIC, {
   maxAge: '5m',
   // Pages and scripts are always re-checked, so an update reaches everyone the next time they open the link.
@@ -128,11 +140,21 @@ const io = new Server(server, {
 
 /* ---------- helpers ---------- */
 const rooms = new Map();
-const pd = pencilsDownServer(io, { codeTaken: c => rooms.has(c) });
+const pd = pencilsDownServer(io, {
+  codeTaken: c => rooms.has(c),
+  emotes: EMOTES.map(e => e.id),
+  // A Pencils Down game opened from a party room counts toward the room's scoreboard.
+  onFinal: (code, winners, names) => {
+    const room = rooms.get(code);
+    if (room) { recordWin(room, 'pencils', winners, names); broadcast(room); }
+  }
+});
 const str = (v, max) => (typeof v === 'string' ? v : '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 const isId = v => typeof v === 'string' && /^[a-z0-9]{8,32}$/.test(v);
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Error:', e); } };
-const isOn = p => p.sockets.size > 0;
+// Bots count as connected players; they have no page of their own.
+const isOn = p => p.bot || p.sockets.size > 0;
+const isHuman = p => !p.bot && p.sockets.size > 0;
 const orderedPlayers = room => [...room.players.values()].sort((a, b) => a.joinedAt - b.joinedAt);
 
 function newCode() {
@@ -150,6 +172,8 @@ function makeRoom(code) {
     settings: Object.fromEntries(Object.entries(GAMES).map(([id, G]) => [id, G.defaults()])),
     game: null,          // a game being played inside the room
     pencils: false,      // a Pencils Down game was opened from this room
+    wins: [],            // tonight's results, for the room scoreboard
+    reactions: {},       // fastest Fifth Element reaction per player tonight
     hostTimer: null, lastActive: Date.now()
   };
   rooms.set(code, room);
@@ -161,38 +185,112 @@ function publicState(room, forPid) {
     code: room.code,
     you: forPid,
     hostPid: room.hostPid,
-    players: orderedPlayers(room).map(p => ({ pid: p.pid, name: p.name, connected: isOn(p) })),
+    players: orderedPlayers(room).map(p => ({ pid: p.pid, name: p.name, connected: isOn(p), color: p.color, bot: !!p.bot })),
     selected: room.selected,
     settings: room.settings,
     pencils: room.pencils,
+    wins: room.wins,
+    reactions: Object.values(room.reactions).sort((a, b) => a.best - b.best),
     game: room.game ? GAMES[room.game.id].view(room.game, forPid) : null,
     serverNow: Date.now()
   };
 }
+const GAME_NAMES = { pencils: 'Pencils Down', fifth: 'The Fifth Element', bw11: 'Black, White & Eleven', spell: 'Spellbound Mayhem', t7: 'The Triple Seven' };
+function recordWin(room, game, winners, names) {
+  room.wins.push({ game, name: GAME_NAMES[game] || game, at: Date.now(),
+    winners: winners.map(pid => ({ pid, name: (names && names[pid]) || (room.players.get(pid) || {}).name || 'Someone' })) });
+  if (room.wins.length > 60) room.wins.shift();
+}
 function broadcast(room) {
   room.lastActive = Date.now();
+  // A game that just finished goes on the room scoreboard, once.
+  const g = room.game;
+  if (g && !g.recorded && GAMES[g.id].result) {
+    const w = GAMES[g.id].result(g);
+    if (w) {
+      g.recorded = true;
+      recordWin(room, g.id, w);
+      // Fifth Element: keep each player's fastest reaction of the night.
+      if (g.id === 'fifth') for (const r of fifth.reactionStats(g)) {
+        const cur = room.reactions[r.pid];
+        const name = (room.players.get(r.pid) || {}).name || 'Someone';
+        if (!cur || r.best < cur.best) room.reactions[r.pid] = { pid: r.pid, name, best: r.best };
+      }
+    }
+  }
   for (const p of room.players.values()) {
     if (!p.sockets.size) continue;
     const st = publicState(room, p.pid);
     for (const sid of p.sockets) io.to(sid).emit('state', st);
   }
 }
+/* ---------- bots ----------
+   A game that supports bots exports bot(game, pid). It looks at the game from that
+   player's seat and returns the move to make ({ move, delay }) or null when the bot has
+   nothing to do. The server waits a moment, asks again (the game may have moved on) and
+   plays the move through the game's normal pick(), so bots follow exactly the same rules. */
+const BOT_MS = [1100, 2400];
+function driveBots(room) {
+  const g = room.game;
+  if (!g) return;
+  const G = GAMES[g.id];
+  if (!G.bot) return;
+  room.botTimers = room.botTimers || {};
+  for (const p of room.players.values()) {
+    if (!p.bot || room.botTimers[p.pid]) continue;
+    let plan = null;
+    try { plan = G.bot(g, p.pid); } catch (e) { console.error(`${G.name} bot error:`, e); }
+    if (!plan) continue;
+    const delay = plan.delay != null ? plan.delay : BOT_MS[0] + crypto.randomInt(BOT_MS[1] - BOT_MS[0]);
+    room.botTimers[p.pid] = setTimeout(safe(() => botAct(room, g, p.pid, 0)), delay);
+  }
+}
+function botAct(room, g, pid, tries) {
+  delete room.botTimers[pid];
+  if (room.game !== g || !room.players.has(pid)) return;
+  const G = GAMES[g.id];
+  let plan = null;
+  try { plan = G.bot(g, pid); } catch (e) { console.error(`${G.name} bot error:`, e); }
+  if (plan) {
+    const r = G.pick(g, pid, plan.move);
+    if (r && r.ok === false) {
+      // Shouldn't happen; try a couple more times, then leave it to the next change in the game.
+      if (tries < 3) room.botTimers[pid] = setTimeout(safe(() => botAct(room, g, pid, tries + 1)), 800);
+      if (tries === 0) console.error(`${G.name} bot move refused:`, JSON.stringify(plan.move), r.error || '');
+      return;
+    }
+  }
+  driveBots(room);
+}
+function stopBots(room) {
+  for (const t of Object.values(room.botTimers || {})) clearTimeout(t);
+  room.botTimers = {};
+}
+function addBot(room) {
+  const used = new Set([...room.players.values()].map(p => p.name));
+  const name = BOT_NAMES.map(n => 'Bot ' + n).find(n => !used.has(n)) || 'Bot ' + (room.players.size + 1);
+  let pid;
+  do { pid = 'bot' + crypto.randomBytes(6).toString('hex'); } while (room.players.has(pid));
+  room.players.set(pid, { pid, secret: null, name, bot: true, sockets: new Set(), joinedAt: Date.now(), leftAt: 0 });
+}
+
 function gameCtx(room) {
   return {
-    broadcast: () => broadcast(room),
+    broadcast: () => { broadcast(room); driveBots(room); },
     fx: data => io.to(room.code).emit('fx', data),
     playerIds: () => [...room.players.keys()],
     onlineIds: () => [...room.players.values()].filter(isOn).map(p => p.pid)
   };
 }
 function endGame(room) {
+  stopBots(room);
   if (room.game) { GAMES[room.game.id].stop(room.game); room.game = null; }
 }
 
 function ensureHost(room) {
   const host = room.players.get(room.hostPid);
-  if (host && isOn(host)) return;
-  const next = orderedPlayers(room).find(isOn);
+  if (host && isHuman(host)) return;
+  const next = orderedPlayers(room).find(isHuman);
   if (next) room.hostPid = next.pid;
   else if (!host) room.hostPid = null;
 }
@@ -264,6 +362,7 @@ io.on('connection', socket => {
     if (!isId(pid) || !isId(secret)) return reply({ ok: false, error: 'Reload the page and try again.' });
     if (!name) return reply({ ok: false, error: 'Type a name first.' });
     let pl = room.players.get(pid);
+    if (pl && pl.bot) return reply({ ok: false, error: 'Reload the page and try again.' });
     if (pl && pl.secret && pl.secret !== secret) return reply({ ok: false, error: 'Reload the page and try again.' });
     if (!pl) {
       if (room.players.size >= MAX_PLAYERS) return reply({ ok: false, error: `This room is full. ${MAX_PLAYERS} players is the limit.` });
@@ -273,6 +372,7 @@ io.on('connection', socket => {
     if (!pl.secret) pl.secret = secret;
     if (socket.data.code && (socket.data.code !== room.code || socket.data.pid !== pid)) detachSocket(socket);
     pl.name = name;
+    if (Number.isInteger(p.color) && p.color >= 0 && p.color < 12) pl.color = p.color;
     pl.leftAt = 0;
     pl.sockets.add(socket.id);
     socket.data.code = room.code;
@@ -291,6 +391,14 @@ io.on('connection', socket => {
     const code = newCode();
     if (!code) return reply({ ok: false, error: 'Couldn’t make a new room. Try again.' });
     const room = makeRoom(code);
+    // The host's settings from last time, remembered by their browser.
+    if (p.prefs && typeof p.prefs === 'object') {
+      if (ALL_GAMES.includes(p.prefs.selected)) room.selected = p.prefs.selected;
+      const ps = p.prefs.settings;
+      if (ps && typeof ps === 'object') for (const [id, G] of Object.entries(GAMES)) {
+        if (ps[id] && typeof ps[id] === 'object') { try { room.settings[id] = G.cleanSettings(ps[id], room.settings[id]); } catch (e) { /* keep defaults */ } }
+      }
+    }
     attach(room, p, reply);
     if (!room.players.size) rooms.delete(room.code);
   }, { noResync: true });
@@ -347,7 +455,7 @@ io.on('connection', socket => {
     if (!c || !c.isHost || c.room.game) return reply({ ok: false });
     const room = c.room;
     if (room.selected === 'pencils') {
-      pd.prepareRoom(room.code, c.me.pid);
+      pd.prepareRoom(room.code, c.me.pid, [...room.players.values()].filter(x => x.bot).map(x => ({ pid: x.pid, name: x.name })));
       room.pencils = true;
       io.to(room.code).emit('goto', { url: '/pencils-down/' + room.code });
       reply({ ok: true });
@@ -364,6 +472,7 @@ io.on('connection', socket => {
     room.game = G.start(gameCtx(room), room.settings[room.selected]);
     reply({ ok: true });
     broadcast(room);
+    driveBots(room);
   });
 
   // A move in the game being played.
@@ -382,6 +491,15 @@ io.on('connection', socket => {
     c.room.game = GAMES[id].start(gameCtx(c.room), c.room.settings[id]);
     reply({ ok: true });
     broadcast(c.room);
+    driveBots(c.room);
+  });
+
+  // The host ends the game being played now and shows its final result (games that support it).
+  on('endNow', (p, reply) => {
+    const c = ctx();
+    if (!c || !c.isHost || !c.room.game || !GAMES[c.room.game.id].endNow) return reply({ ok: false });
+    GAMES[c.room.game.id].endNow(c.room.game);
+    reply({ ok: true });
   });
 
   on('toRoom', (p, reply) => {
@@ -401,6 +519,42 @@ io.on('connection', socket => {
     io.to(c.room.code).emit('emote', { pid: c.me.pid, id: p.id });
     reply({ ok: true });
   }, { noResync: true });
+
+  on('addBot', (p, reply) => {
+    const c = ctx();
+    if (!c || !c.isHost || c.room.game) return reply({ ok: false });
+    const bots = [...c.room.players.values()].filter(x => x.bot).length;
+    if (bots >= MAX_BOTS) return reply({ ok: false, error: `${MAX_BOTS} bots is the limit.` });
+    if (c.room.players.size >= MAX_PLAYERS) return reply({ ok: false, error: 'The room is full.' });
+    addBot(c.room);
+    reply({ ok: true });
+    broadcast(c.room);
+  });
+
+  // The host hands the host role to someone else in the room.
+  on('makeHost', (p, reply) => {
+    const c = ctx();
+    const target = c && c.room.players.get(p.pid);
+    if (!c || !c.isHost || !target || target.pid === c.me.pid || !isHuman(target)) return reply({ ok: false });
+    c.room.hostPid = target.pid;
+    clearTimeout(c.room.hostTimer);
+    reply({ ok: true });
+    broadcast(c.room);
+  });
+
+  // Change your own name or avatar color.
+  on('profile', (p, reply) => {
+    const c = ctx();
+    if (!c) return reply({ ok: false });
+    if (p.name !== undefined) {
+      const name = str(p.name, 20);
+      if (!name) return reply({ ok: false, error: 'Type a name first.' });
+      c.me.name = name;
+    }
+    if (p.color !== undefined) c.me.color = Number.isInteger(p.color) && p.color >= 0 && p.color < 12 ? p.color : undefined;
+    reply({ ok: true });
+    broadcast(c.room);
+  });
 
   on('kick', (p, reply) => {
     const c = ctx();
@@ -427,7 +581,7 @@ io.on('connection', socket => {
 setInterval(safe(() => {
   const t = Date.now();
   for (const room of rooms.values()) {
-    const anyone = [...room.players.values()].some(isOn);
+    const anyone = [...room.players.values()].some(isHuman);
     if (!anyone && t - room.lastActive > ROOM_IDLE_MS) {
       endGame(room); clearTimeout(room.hostTimer);
       rooms.delete(room.code);
