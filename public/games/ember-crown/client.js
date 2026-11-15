@@ -33,6 +33,7 @@ const poss = (pid, st) => (pid === st.you ? 'your' : esc(H.nameOf(pid)) + '’s'
 const label = n => (n === WRAITH ? 'W' : String(n));
 const list = ns => (ns && ns.length ? ns.map(n => `<b>${label(n)}</b>`).join(' ') : 'nothing');
 const art = () => ((H.catalog && H.catalog.ember) || {}).art || {};
+const renownIcon = () => (art().renown ? `<img class="renown" src="${esc(art().renown)}" alt="">` : '');
 
 /* ---------- drawing a card ---------- */
 function cardHTML(n, o) {
@@ -174,7 +175,7 @@ function render(main, st) {
       cards = P.hand.map(c => cardHTML(c.n, { pick: handPick, sel: L.sel === c.id, act: handPick ? 'ec-hand' : '', k: c.id })).join('');
     } else if (P.hand) cards = P.hand.map(n => cardHTML(n, { size: 'sm' })).join('') || '<span class="muted">no cards</span>';
     else cards = Array.from({ length: P.count }, () => cardHTML(null, { size: 'sm' })).join('');
-    const tally = g.settings.mode === 'renown' ? `${g.scores[pid]}<small>renown</small>` : `${g.wins[pid]}<small>won</small>`;
+    const tally = g.settings.mode === 'renown' ? `<span class="v">${renownIcon()}${g.scores[pid]}</span><small>renown</small>` : `<span class="v">${g.wins[pid]}</span><small>won</small>`;
     let status = '';
     if (!P.alive) status = 'knocked out';
     else if (t && t.pid === pid) status = isMe ? 'your turn' : 'their turn';
@@ -182,7 +183,7 @@ function render(main, st) {
     const played = P.played.length ? `<div class="ecplayed" aria-label="Played cards">${P.played.map(n => cardHTML(n, { size: 'xs' })).join('')}</div>` : '';
     return `<div class="ecseat${t && t.pid === pid ? ' turn' : ''}${isMe ? ' me' : ''}${P.alive ? '' : ' out'}">
       <div class="echead">${H.avatar(pid, isMe ? 34 : 28)}<span class="nm">${esc(nm(pid, st))}<small>${esc([status, P.alive && !isMe && !P.hand ? `${P.count} card${P.count === 1 ? '' : 's'}` : ''].filter(Boolean).join(' · '))}</small></span><span class="tally">${tally}</span></div>
-      <div class="echand">${cards}</div>${played}</div>`;
+      <div class="echand">${cards}</div>${played}${P.alive ? '' : `<span class="ecout" aria-hidden="true">${art().eliminated ? `<img src="${esc(art().eliminated)}" alt="">` : '💀'}</span>`}</div>`;
   };
 
   const around = playing ? [me, ...g.order.slice(g.order.indexOf(me) + 1), ...g.order.slice(0, g.order.indexOf(me))] : g.order;
@@ -212,8 +213,8 @@ function render(main, st) {
       ${H.dd('ec-rules', 'How to play', rulesHTML(g.settings), 'ec-rules')}
       ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
     <div class="ec-main">${narrow
-      ? `<div class="ec-stack"><div class="ec-rivals">${seats.filter((_, i) => i !== mineIdx).join('')}</div>${center}${mineIdx === 0 ? seats[0] : ''}</div>`
-      : `<div class="ec-round p${n}"><div class="ec-felt" aria-hidden="true"${art().table ? ` style="background-image:url('${esc(art().table)}')"` : ''}></div>${center}${seats.join('')}</div>`}
+      ? `<div class="ec-stack"${art().table ? ` style="background-image:radial-gradient(ellipse at 50% 45%,rgba(140,60,20,.3),rgba(10,4,2,.6)),url('${esc(art().table)}');background-size:cover"` : ''}><div class="ec-rivals">${seats.filter((_, i) => i !== mineIdx).join('')}</div>${center}${mineIdx === 0 ? seats[0] : ''}</div>`
+      : `<div class="ec-round p${n}"><div class="ec-felt" aria-hidden="true"${art().table ? ` style="background-image:radial-gradient(ellipse at 50% 42%,rgba(140,60,20,.35),rgba(20,8,4,.15) 55%,rgba(10,4,2,.7)),url('${esc(art().table)}')"` : ''}></div>${center}${seats.join('')}</div>`}
     <div class="ec-side">${playing ? '' : '<p class="muted" style="margin:0">You joined after this game started, so you’re watching this one.</p>'}
     ${actHTML(g, st)}${playing ? knowHTML(g, st) : ''}</div></div>
   </section>`;
@@ -340,7 +341,7 @@ function summaryHTML(g, st) {
   const s = g.summary || {};
   const tally = g.settings.mode === 'renown' ? g.scores : g.wins;
   const ranked = g.order.slice().sort((a, b) => tally[b] - tally[a]);
-  const rows = ranked.map(pid => `<li>${H.avatar(pid, 30)}<span>${esc(nm(pid, st))}<br><small class="muted">${s.hands ? `held ${list(s.hands[pid])}` : ''}</small></span><span class="pt">${tally[pid]}<small>${g.settings.mode === 'renown' ? 'renown' : 'won'}</small></span></li>`).join('');
+  const rows = ranked.map(pid => `<li>${H.avatar(pid, 30)}<span>${esc(nm(pid, st))}<br><small class="muted">${s.hands ? `held ${list(s.hands[pid])}` : ''}</small></span><span class="pt"><span class="v">${g.settings.mode === 'renown' ? renownIcon() : ''}${tally[pid]}</span><small>${g.settings.mode === 'renown' ? 'renown' : 'won'}</small></span></li>`).join('');
   const why = s.why === 'goddess' ? `🌊 ${esc(nm(s.winner, st))} began a turn holding only the Water Goddess${s.pts ? ` (+${s.pts})` : ''}.`
     : s.winner ? `${esc(nm(s.winner, st))} ${s.winner === st.you ? 'are' : 'is'} the last adventurer standing.` : '';
   const center = s.center && s.center.length ? ` The center held ${list(s.center)}.` : '';

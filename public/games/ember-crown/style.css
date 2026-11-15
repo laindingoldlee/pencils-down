@@ -55,6 +55,7 @@
 .ec-round{position:relative;width:100%;aspect-ratio:16/9;min-height:500px;--cw:58px}
 .ec-felt{position:absolute;inset:14% 13%;border-radius:50%;background:radial-gradient(ellipse at 50% 40%,#5A2A17,#331309 60%,#1C0904);background-size:cover;background-position:center;
   box-shadow:0 0 0 10px #3B2414,0 0 0 13px #C9973F,0 0 0 15px #2A1408,inset 0 0 60px rgba(0,0,0,.6),0 0 60px rgba(255,110,40,.18),0 24px 44px rgba(0,0,0,.6)}
+.ec-felt[style]::after{display:none}
 .ec-felt::after{content:"♛";position:absolute;inset:0;display:grid;place-items:center;font-size:clamp(4rem,14vw,9rem);color:rgba(255,160,70,.06);pointer-events:none}
 .eccenter{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);display:flex;gap:10px 18px;align-items:flex-end;justify-content:center;flex-wrap:wrap;max-width:46%;z-index:1}
 .ecpile{display:grid;justify-items:center;gap:4px}
@@ -66,7 +67,7 @@
 .ec-round .ecspot.at-top{transform:translate(-50%,0)}
 .ecseat{background:rgba(20,8,4,.8);backdrop-filter:blur(2px);border:1.5px solid transparent;border-radius:14px;padding:6px 10px 8px;display:grid;gap:6px;width:max-content;max-width:min(360px,46vw)}
 .ecseat.turn{border-color:var(--gold);background:rgba(70,40,10,.88);box-shadow:0 0 18px rgba(244,195,90,.25)}
-.ecseat.out{opacity:.6}
+.ecseat.out > :not(.ecout){opacity:.6}
 .ecseat.out .echead .nm{text-decoration:line-through}
 .echead{display:flex;align-items:center;gap:8px}
 .echead .nm{font-weight:700;font-size:.92rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:160px}
@@ -165,3 +166,11 @@
 .ec.fitted .ecspot.mine{--cw:clamp(42px,calc(var(--fit-h) * .085),74px)}
 .ec.fitted .ec-sum li{padding:3px 4px}
 .ec.fitted .ec-act,.ec.fitted .ec-know{padding:10px 14px;gap:8px}
+
+/* renown icon and the knocked-out stamp */
+.ec .v{display:inline-flex;align-items:center;gap:4px}
+.ec img.renown{width:1.05em;height:1.05em;flex:none}
+.ecseat{position:relative}
+.ecout{position:absolute;left:-12px;top:-14px;width:46px;height:46px;display:grid;place-items:center;font-size:30px;z-index:2;transform:rotate(-12deg);pointer-events:none}
+.ecout img{width:100%;height:100%}
+.ec-rivals .ecout{width:34px;height:34px;left:-6px;top:-8px}

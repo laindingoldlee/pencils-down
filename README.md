@@ -40,11 +40,11 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 
 ## The Ember Crown's card art and sounds
 
-Until you add pictures, the cards are drawn with a colored background and an emoji. To use your own art, put files in `public/games/ember-crown/art/` with these names (`.webp`, `.png`, `.jpg` or `.svg`):
+The game ships with its own art. To replace a picture, put a file in `public/games/ember-crown/art/` with these names (`.webp`, `.png`, `.jpg` or `.svg`):
 
 - `card-0` Apprentice, `card-1` Warrior, `card-2` Barbarian, `card-3` Duelist, `card-4` Shadow Hunter, `card-5` Princess Knight, `card-6` Doomblade, `card-7` Spirit Caller, `card-8` Plague Doctor, `card-9` Water Goddess, `card-wraith` Ember Wraith
 - `card-back` for every face-down card
-- Optional: `crown` (title logo, transparent), `table` (background picture for the table)
+- `crown` (title logo), `renown` (score icon), `eliminated` (stamp on a knocked-out player), `table` (table texture)
 
 Card pictures should be portrait, 5:7 (for example 600 × 840 pixels), illustration only. The game draws the number in the top-left corner and the name along the bottom, so keep those areas fairly plain. Any picture you leave out keeps its drawn version.
 
