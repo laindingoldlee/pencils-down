@@ -4,7 +4,7 @@
  *
  * Friends meet in a party room (public/index.html), send emotes, and the host picks a game:
  *  - Games that run inside the room live in games/ and plug in through GAMES below
- *    (The Fifth Element so far).
+ *    (The Fifth Element, Black, White & Eleven, Spellbound Mayhem, The Triple Seven, Countercurrent).
  *  - Pencils Down has its own page and server code (games/pencils-down.js). Starting it
  *    opens a Pencils Down game with the room's code and sends everyone there.
  *
@@ -23,12 +23,13 @@ const bw11 = require('./games/black-white-eleven');
 const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
 const ember = require('./games/ember-crown');
+const cc = require('./games/countercurrent');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7, ember };                       // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember, cc };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -62,7 +63,7 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
-/* Pictures in a folder, by name without the extension (for The Ember Crown's card art). */
+/* Pictures in a folder, by name without the extension (The Ember Crown and Countercurrent). */
 function loadArt(dir, urlBase) {
   const out = {};
   try {
@@ -80,7 +81,8 @@ const CATALOG = {
   ember: {
     art: loadArt(path.join(PUBLIC, 'games', 'ember-crown', 'art'), '/games/ember-crown/art/'),
     sounds: loadSounds(path.join(PUBLIC, 'games', 'ember-crown', 'sounds'), '/games/ember-crown/sounds/')
-  }
+  },
+  cc: { art: loadArt(path.join(PUBLIC, 'games', 'countercurrent', 'art'), '/games/countercurrent/art/') }
 };
 
 /* ---------- web server ---------- */
