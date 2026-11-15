@@ -365,6 +365,104 @@ function endRound(g, why) {
   g.ctx.broadcast();
 }
 
+/* ---------- bots ----------
+   A practice opponent. It decides only from view(g, pid), i.e. what its seat can see:
+   cards it has looked at, face-up cards and the power options the game offers it.
+   Unknown cards are guessed at the average card value. */
+const GUESS = 6;   // rough value of a card the bot hasn't seen (54 cards average about 6.1)
+function bot(g, pid) {
+  if (g.phase === 'peek') {
+    if (!g.order.includes(pid) || g.peeked.has(pid)) return null;
+    return { move: { a: 'peek', id: pickRandom(view(g, pid).rows[pid]).id } };
+  }
+  if (g.phase !== 'play' || !g.turn || g.turn.pid !== pid) return null;
+  const v = view(g, pid), t = v.turn;
+  const me = v.rows[pid];
+  const val = c => (c.face ? value(c.face) : GUESS);
+  const est = p => v.rows[p].reduce((a, c) => a + val(c), 0);
+  const mineIds = new Set(me.map(c => c.id));
+  const owner = id => v.order.find(p => v.rows[p].some(c => c.id === id));
+  const card = id => v.rows[owner(id)].find(c => c.id === id);
+  const opp = v.order.filter(p => p !== pid);
+
+  if (t.step === 'start') {
+    // Call last round now and then when the bot thinks its row is clearly low.
+    if (v.settings.allowCall && !v.called) {
+      const unknown = me.filter(c => !c.face).length;
+      const mine = est(pid);
+      const lowest = opp.every(p => mine < est(p));
+      if (mine <= 4 + unknown * 2 && lowest && unknown <= 1 && Math.random() < 0.5) return { move: { a: 'call' } };
+    }
+    return { move: { a: 'draw' } };
+  }
+  if (t.step === 'decide') {
+    const d = value(t.drawn);
+    const open = me.filter(c => !c.locked);
+    // Keep a low card in place of the highest known card it beats; a very low one may replace an unknown.
+    const known = open.filter(c => c.face).sort((a, b) => val(b) - val(a));
+    if (d <= 5 && known.length && val(known[0]) > d + 1) return { move: { a: 'keep', id: known[0].id } };
+    const unknown = open.filter(c => !c.face);
+    if (d <= 2 && unknown.length) return { move: { a: 'keep', id: pickRandom(unknown).id } };
+    return { move: { a: 'play' } };
+  }
+  if (t.step !== 'power' || !t.power || !t.power.opts) return null;
+  const o = t.power.opts, r = t.power.r;
+  const choose = x => ({ move: x });
+  const randomly = () => choose(randomChoice(o));
+  if (o.players) {
+    const ok = o.players;
+    const okOpp = opp.filter(p => ok.includes(p));
+    if (r === 'A' && okOpp.length) return choose({ a: 'power', pids: [pickRandom(okOpp)] });   // hand someone else a card
+    if (r === '2' && okOpp.length) {
+      // Spy on whoever it knows least about.
+      const blind = p => v.rows[p].filter(c => !c.face && !c.locked).length;
+      const best = Math.max(...okOpp.map(blind));
+      return choose({ a: 'power', pids: [pickRandom(okOpp.filter(p => blind(p) === best))] });
+    }
+    if (r === 'X' && o.n === 2 && ok.includes(pid) && okOpp.length) {
+      // Trade rows with whoever seems lowest if that beats its own row; otherwise swap two others if it can.
+      const low = okOpp.slice().sort((a, b) => est(a) - est(b))[0];
+      if (est(low) < est(pid) - 1) return choose({ a: 'power', pids: [pid, low] });
+      if (okOpp.length >= 2) return choose({ a: 'power', pids: shuffle(okOpp.slice()).slice(0, 2) });
+      return choose({ a: 'power', pids: [pid, low] });
+    }
+    return randomly();
+  }
+  const ids = o.cards;
+  const mineOk = ids.filter(id => mineIds.has(id));
+  const theirsOk = ids.filter(id => !mineIds.has(id));
+  if (r === '7') {
+    // Throw away its highest known card, or an unknown one if nothing known is high.
+    const known = mineOk.filter(id => card(id).face).sort((a, b) => val(card(b)) - val(card(a)));
+    if (known.length && val(card(known[0])) >= GUESS) return choose({ a: 'power', ids: [known[0]] });
+    const unknown = mineOk.filter(id => !card(id).face);
+    if (unknown.length) return choose({ a: 'power', ids: [pickRandom(unknown)] });
+    return randomly();
+  }
+  if (r === '10' || r === 'J') {
+    // Learn one of its own unknown cards first, then someone else's.
+    const pool = [mineOk, theirsOk].map(a => a.filter(id => !card(id).face)).find(a => a.length);
+    return pool ? choose({ a: 'power', ids: [pickRandom(pool)] }) : randomly();
+  }
+  if (r === 'Q') {
+    // Swap its highest card for a lower one in another row; if that doesn't help, swap two other cards.
+    const mine = mineOk.slice().sort((a, b) => val(card(b)) - val(card(a)));
+    const theirs = theirsOk.slice().sort((a, b) => val(card(a)) - val(card(b)));
+    if (mine.length && theirs.length && val(card(mine[0])) > val(card(theirs[0]))) return choose({ a: 'power', ids: [mine[0], theirs[0]] });
+    if (theirsOk.length >= 2) return choose({ a: 'power', ids: shuffle(theirsOk.slice()).slice(0, 2) });
+    return randomly();
+  }
+  if (r === 'K') {
+    // Lock in one of its own known low cards; otherwise lock an unknown card of someone else's.
+    const low = mineOk.filter(id => { const c = card(id); return !c.locked && c.face && value(c.face) <= 3; });
+    if (low.length) return choose({ a: 'power', ids: [pickRandom(low)] });
+    const theirs = theirsOk.filter(id => !card(id).locked);
+    if (theirs.length) return choose({ a: 'power', ids: [pickRandom(theirs)] });
+    return randomly();
+  }
+  return randomly();
+}
+
 /* The host ends the game now: everyone's cards as they are right now are scored, and that's the final result. */
 function endNow(g) {
   if (g.phase === 'over') return;
@@ -419,7 +517,7 @@ function view(g, viewer) {
 module.exports = {
   id: 't7', name: 'The Triple Seven', minPlayers: 2,
   POWER_RANKS, defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined, endNow,
+  start, stop, pick, view, playersChanged, playerJoined, endNow, bot,
   result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _startRound: startRound, value // for tests
 };

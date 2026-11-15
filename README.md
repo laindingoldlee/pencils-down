@@ -17,6 +17,16 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 - **The Turning Tide: A Pirate's Claim**, for 2 to 4 captains: 16 hidden cards lie in a 4×4 chart and each captain sits on one side of it (on every screen your side is at the bottom). On your turn, scout a hidden card (it's yours, and attacks the face-up cards beside it), board a face-up card with a card from your hand that defeats it, or draw 1 card (hand limit 6) or trade 2 or 3. A card that defeats a neighbour takes it over, and turns to face its new owner in their color. Fights: Tide beats Powder, Powder beats Gale, Gale beats Stone, Stone beats Tide; otherwise the higher number wins. The deck is 56 Crew cards (2–15 in each force), 12 Captain's Signs (the zodiac, 1–12, each with a force) and 10 Legendary Ships (0–9, no force). Ship 0 is the Sun Ship and counts as 10. When the last card is revealed, most locations wins; ties go to fewer cards in hand, then the lower total on your locations. The artwork goes in `public/games/tide/art/`. `ASSETS.md` there lists every picture and sound and its file name.
 - **Signal Salvage: The Last Signal**: a press-your-luck salvage game for 2–8 players. Scan cards into the scan zone; each new emblem's ability happens (Shield, Grapple, Pulse, Access Key, Vault, Survey Map, Predictor, Breach, Leviathan, Aurora). Scan an emblem that's already there and the run collapses, except for Shield-protected cards. Or collect everything into your vault. Access Key + Vault on collect gives bonus cards from the archive. When the last card is scanned the game ends; only the top card of each vault stack scores. The host can turn on Specialists (dealt two, keep one), pick one Mission Protocol, and turn on the Aurora Protocol variant. 5 or more players use two decks. Art goes in `public/games/ss/art/` (see the README there); anything missing is drawn as a placeholder.
 
+## Practice bots
+
+To practise or learn a game, the host can tap **🤖 Add a bot** in the room (up to 8). Bots show up in the player list marked "bot" and can be removed like anyone else. They work in every game, Pencils Down included.
+
+- Bots play by the rules, not well. They make every move through the same checks as people, and they only use what their own seat could see.
+- They take a second or two per move so you can follow along. In The Fifth Element they take 2–5 seconds to react and click the wrong item about one time in seven.
+- In Pencils Down, bots answer from a small word bank in `games/pencils-down-words.js`, which covers common categories such as City, Country, Job, Animal, Food, Colour and Ways to die. For other categories they leave the box empty. In review they vote out answers that don't start with the round's letter, then tap Ready. Add words or categories to that file to teach them more.
+- Bots never become the host, and a room with only bots left in it closes like an empty room.
+- In the code, each game's bot is a `bot(game, playerId)` function in its file under `games/`, which returns the move to make.
+
 ## What's in here
 
 - `server.js` runs the website and the party rooms (players, host, emotes, starting games).

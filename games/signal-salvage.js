@@ -520,6 +520,75 @@ function autoMove(g, pid) {
   if (canScan(g)) return pick(g, pid, { a: 'scan' });
   return pick(g, pid, { a: 'collect' });
 }
+/* ---------- bots ----------
+   A practice opponent. It decides only from view(g, pid), so it sees what its seat sees:
+   public vaults, the archive, the scan zone, and its own Predictor peek. It keeps scanning
+   while the chance of a collapse (worked out from the cards not yet seen) stays low, and
+   makes simple greedy picks when an ability asks it to choose. */
+function bot(g, pid) {
+  if (!g.order.includes(pid)) return null;
+  const v = view(g, pid);
+  if (v.phase === 'draft') {
+    if (v.spec[pid] || !v.offers || !v.offers.length) return null;
+    const id = pickRandom(v.offers);
+    const opp = v.order.filter(p => p !== pid);
+    return { move: id === 'custodian' ? { a: 'spec', id, target: pickRandom(opp) } : { a: 'spec', id } };
+  }
+  const t = v.turn;
+  if (v.phase !== 'play' || !t || t.pid !== pid || t.ended) return null;
+  const pattern = v.settings.protocol === 'pattern';
+  const inZone = new Set(v.zone.map(c => c.e)), nums = new Set(v.zone.map(c => c.v));
+  const safeCard = c => !inZone.has(c.e) && !(pattern && nums.has(c.v));
+  const top = (owner, e) => (v.vaults[owner][e] || [])[0] || { e, v: 0 };
+  if (t.pending) {
+    const o = t.pending.opts;
+    const choose = k => ({ move: { a: 'choose', k } });
+    const bestBy = (list, f) => list.slice().sort((a, b) => f(b) - f(a))[0];
+    switch (t.pending.k) {
+      case 'grapple': return choose(bestBy(o, e => (safeCard(top(pid, e)) ? 100 : 0) + top(pid, e).v));
+      case 'backfire': // lose the least: a stack whose next card is close to its top, or a low top
+        return choose(bestBy(o, e => { const st = v.vaults[pid][e]; return -(st[0].v - (st[1] ? st[1].v : 0)); }));
+      case 'pulse': {
+        const lead = p => v.scores[p].pts;
+        return choose(bestBy(o, k => { const [p, e] = k.split(':'); return lead(p) + top(p, e).v; }));
+      }
+      case 'breach': return choose(bestBy(o, k => { const [p, e] = k.split(':'); const c = top(p, e); return (safeCard(c) ? 100 : 0) + c.v; }));
+      case 'map': {
+        const cards = (t.reveal || []).filter(c => o.includes(String(c.id)));
+        const c = bestBy(cards, c => (safeCard(c) ? 100 : 0) + c.v);
+        return choose(c ? String(c.id) : pickRandom(o));
+      }
+      case 'predict': {
+        const next = Array.isArray(t.peek) ? t.peek[0] : null;
+        if (o.includes('return') && next && !safeCard(next)) return choose('return');
+        return choose(o.includes('add') ? 'add' : o[0]);
+      }
+      case 'raider': return choose(bestBy(o, p => Object.values(v.vaults[p]).reduce((a, st) => a + st.length, 0)));
+      default: return choose(pickRandom(o)); // aurora: replay any card's ability
+    }
+  }
+  if (!t.canScan && !t.canCollect) return null;
+  if (!t.canCollect) return { move: { a: 'scan' } };
+  if (!t.canScan) return { move: { a: 'collect' } };
+  // Unseen cards are exactly the scanning deck: everything else is public. Count the risky ones.
+  const seen = {};
+  const mark = c => { seen[c.e + c.v] = (seen[c.e + c.v] || 0) + 1; };
+  v.archive.forEach(mark); v.zone.forEach(mark);
+  for (const p of v.order) for (const st of Object.values(v.vaults[p])) st.forEach(mark);
+  let unseen = 0, risky = 0;
+  for (const e of EMBLEMS) {
+    const lo = e === 'aurora' ? 4 : 2;
+    for (let n = lo; n < lo + 6; n++) {
+      const left = Math.max(0, v.copies - (seen[e + n] || 0));
+      unseen += left;
+      const banked = (e === 'aurora' && !v.settings.aurora && v.spec[pid] === 'collector') || (e === 'leviathan' && v.spec[pid] === 'angler');
+      if (!banked && !safeCard({ e, v: n })) risky += left;
+    }
+  }
+  const bust = unseen ? risky / unseen : 1;
+  const bonus = t.bonusReady ? 0.08 : 0;
+  return { move: { a: bust > 0.3 + bonus + Math.random() * 0.15 ? 'collect' : 'scan' } };
+}
 function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
@@ -558,6 +627,6 @@ function view(g, viewer) {
 module.exports = {
   id: 'ss', name: 'Signal Salvage', minPlayers: 2,
   EMBLEMS, NAMES, SPECIALISTS, PROTOCOLS, defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
   _score: score, _startTurn: startTurn // for tests
 };

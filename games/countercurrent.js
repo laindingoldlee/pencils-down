@@ -379,6 +379,49 @@ function autoMove(g, pid) {
   if (moves.length) return act(g, pid, pickRandom(moves));
   pick(g, pid, { a: 'pass' });
 }
+/* ---------- bots ----------
+   A practice opponent. It only uses what its seat could know: its own hand, and the
+   profiles already shown to be wrong. It plays a random legal protocol and declares
+   once few profiles are still possible from where it sits. */
+function plausible(g, pid) {
+  const h = g.hands[pid];
+  const left = c => COUNTS[c] - h[c];   // samples of this colour it can't see
+  return [0, 1, 2, 3, 4, 5, 6].filter(p => {
+    if (g.dead.includes(p)) return false;
+    if (p === SAME) return COLORS.some(c => left(c) >= 2);
+    return PROFILES[p].every(c => left(c) >= 1);
+  });
+}
+function bot(g, pid) {
+  if (g.phase !== 'play' || !g.turn) return null;
+  if (g.decl) {
+    if (g.decl.cur !== pid) return null;
+    const ok = plausible(g, pid);
+    const backable = g.decl.claims.filter(c => c.type === 'claim' && ok.includes(c.profile));
+    const free = ok.filter(p => !g.decl.claims.some(c => c.profile === p));
+    if (ok.length === 1 && free.includes(ok[0])) return { move: { a: 'reply', type: 'claim', profile: ok[0] } };
+    if (backable.length && Math.random() < 0.3) return { move: { a: 'reply', type: 'back', profile: pickRandom(backable).profile } };
+    return { move: { a: 'reply', type: 'pass' } };
+  }
+  if (g.turn.pid !== pid) return null;
+  if (g.turn.step === 'trace') {
+    if (Math.random() < 0.5) return { move: { a: 'trace', color: null } };
+    const h = g.hands[pid];
+    const best = COLORS.slice().sort((a, b) => (COUNTS[b] - h[b]) - (COUNTS[a] - h[a]))[0];
+    return { move: { a: 'trace', color: best } };
+  }
+  const moveTo = () => pickRandom([0, 1, 2, 3, 4, 5, 6].filter(p => p !== g.field[pid]));
+  const ok = plausible(g, pid);
+  const claim = () => pickRandom(ok.length ? ok : [0, 1, 2, 3, 4, 5, 6].filter(p => !g.dead.includes(p)));
+  if (g.forced === pid || (canDeclare(g, pid) && (ok.length <= 2 || Math.random() < 0.08))) {
+    return { move: { a: 'act', tile: 'declare', profile: moveTo(), claim: claim() } };
+  }
+  const moves = plainMoves(g, pid);
+  if (moves.length) return { move: Object.assign({ a: 'act' }, pickRandom(moves)) };
+  if (canDeclare(g, pid)) return { move: { a: 'act', tile: 'declare', profile: moveTo(), claim: claim() } };
+  return { move: { a: 'pass' } };
+}
+
 function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
@@ -417,6 +460,6 @@ module.exports = {
   id: 'cc', name: 'Countercurrent', minPlayers: 3,
   COLORS, COUNTS, PROFILES, TILES, SETS,
   defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
   _profileOf: profileOf, _startRound: startRound, _autoMove: autoMove // for tests
 };

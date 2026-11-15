@@ -383,10 +383,10 @@ function renderRoom(main, st) {
   const crowd = st.players.map(p => {
     const kick = host && p.pid !== st.you
       ? `<button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
-    const promote = host && p.pid !== st.you && p.connected
+    const promote = host && p.pid !== st.you && p.connected && !p.bot
       ? `<button type="button" class="linkbtn${armed('make-host', p.pid) ? ' armed' : ''}" data-act="make-host" data-k="${esc(p.pid)}">${armed('make-host', p.pid) ? 'make host?' : 'make host'}</button>` : '';
     const mine = p.pid === st.you;
-    return `<li>${mine ? `<button type="button" class="avbtn" data-act="edit-me" title="Change your name or colour">${avatar(p.pid)}<span class="pen" aria-hidden="true">✎</span></button>` : avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${mine ? '<button type="button" class="linkbtn" data-act="edit-me">you · edit</button>' : (p.connected ? '' : 'away')}${promote}${kick}</span></li>`;
+    return `<li>${mine ? `<button type="button" class="avbtn" data-act="edit-me" title="Change your name or colour">${avatar(p.pid)}<span class="pen" aria-hidden="true">✎</span></button>` : avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${mine ? '<button type="button" class="linkbtn" data-act="edit-me">you · edit</button>' : (p.bot ? '🤖 bot' : (p.connected ? '' : 'away'))}${promote}${kick}</span></li>`;
   }).join('');
   const cards = GAME_LIST.map(g => `<button type="button" class="gcard" data-act="select" data-k="${g.id}" aria-pressed="${st.selected === g.id}" ${g.ready && host ? '' : 'disabled'}>
       <span class="tag">${g.ready ? esc(g.players) : 'Coming soon'}</span><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p></button>`).join('');
@@ -417,7 +417,7 @@ function renderRoom(main, st) {
     ${scoreboard(st)}
     ${reactionBoard(st)}
     <section class="panel">
-      <header class="panel-head"><h2>In the room</h2><span class="muted">Tap an emote below to react</span></header>
+      <header class="panel-head"><h2>In the room</h2>${host ? `<span class="row" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><button type="button" class="btn" data-act="addBot">🤖 Add a bot</button><span class="muted">Bots play by the rules, not well. Good for practice.</span></span>` : '<span class="muted">Tap an emote below to react</span>'}</header>
       <ul class="crowd">${crowd}</ul>
     </section>
     <section class="panel">
@@ -455,6 +455,7 @@ document.addEventListener('click', async e => {
     case 'make-host': if (armed('make-host', k)) { S.arm = null; emit('makeHost', { pid: k }); } else arm('make-host', k); break;
     case 'kick': if (armed('kick', k)) { S.arm = null; emit('kick', { pid: k }); } else arm('kick', k); break;
     case 'toRoom': if (armed('toRoom')) { S.arm = null; emit('toRoom'); } else arm('toRoom'); break;
+    case 'addBot': b.disabled = true; emit('addBot').then(r => { if (r && !r.ok && r.error) toast(r.error); }); break;
     case 'toRoomNow': b.disabled = true; emit('toRoom'); break;
     case 'again': b.disabled = true; emit('again'); break;
     case 'leave':

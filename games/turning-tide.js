@@ -218,6 +218,43 @@ function endGame(g) {
   g.ctx.broadcast();
 }
 
+/* ---------- bots ----------
+   A practice captain. It decides from its own view (its hand and the face-up chart):
+   it boards when a card from its hand wins locations, otherwise it scouts, and now
+   and then draws or trades when its hand is short of useful cards. */
+function bot(g, pid) {
+  if (g.phase !== 'play' || g.turn !== pid) return null;
+  const v = view(g, pid);
+  const hand = v.hand || [];
+  const takes = (card, i) => neighbours(i).filter(j => {
+    const c = v.grid[j];
+    return c.up && c.owner !== pid && beats(card, c.card);
+  }).length;
+  const options = [];
+  const hidden = v.grid.map((c, i) => (c.up ? -1 : i)).filter(i => i >= 0);
+  for (const i of hidden) {
+    // An unknown card: it's ours, and it may take a neighbour or two.
+    const rivalsNear = neighbours(i).filter(j => v.grid[j].up && v.grid[j].owner !== pid).length;
+    options.push({ score: 1 + 0.35 * rivalsNear, move: { a: 'scout', cell: i } });
+  }
+  v.grid.forEach((c, i) => {
+    if (!c.up) return;
+    for (const card of hand) {
+      if (!beats(card, c.card)) continue;
+      const gain = (c.owner !== pid ? 1 : 0) + takes(card, i);
+      if (gain) options.push({ score: gain + 0.4 - card.v * 0.01, move: { a: 'board', id: card.id, cell: i } });
+    }
+  });
+  if (hand.length < v.handMax && v.pileLeft && hand.length < 3) options.push({ score: 1.1, move: { a: 'draw' } });
+  if (hand.length >= 3 && v.pileLeft >= 2 && !options.some(o => o.move.a === 'board')) {
+    const weak = hand.slice().sort((a, b) => a.v - b.v).slice(0, 2).map(c => c.id);
+    options.push({ score: 0.6, move: { a: 'trade', ids: weak } });
+  }
+  for (const o of options) o.score += Math.random() * 0.6;
+  options.sort((a, b) => b.score - a.score);
+  return { move: options[0].move };
+}
+
 function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
@@ -240,6 +277,6 @@ function view(g, viewer) {
 module.exports = {
   id: 'tide', name: 'The Turning Tide', minPlayers: 2,
   defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
   beats, makeDeck // for tests
 };
