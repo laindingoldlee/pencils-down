@@ -24,12 +24,13 @@ const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
 const ember = require('./games/ember-crown');
 const cc = require('./games/countercurrent');
+const tide = require('./games/turning-tide');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7, ember, cc };                       // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember, cc, tide };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc', 'tide']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -63,7 +64,7 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
-/* Pictures in a folder, by name without the extension (The Ember Crown and Countercurrent). */
+/* Pictures in a folder, by name without the extension (The Ember Crown, Countercurrent and The Turning Tide). */
 function loadArt(dir, urlBase) {
   const out = {};
   try {
@@ -82,7 +83,11 @@ const CATALOG = {
     art: loadArt(path.join(PUBLIC, 'games', 'ember-crown', 'art'), '/games/ember-crown/art/'),
     sounds: loadSounds(path.join(PUBLIC, 'games', 'ember-crown', 'sounds'), '/games/ember-crown/sounds/')
   },
-  cc: { art: loadArt(path.join(PUBLIC, 'games', 'countercurrent', 'art'), '/games/countercurrent/art/') }
+  cc: { art: loadArt(path.join(PUBLIC, 'games', 'countercurrent', 'art'), '/games/countercurrent/art/') },
+  tide: {
+    art: loadArt(path.join(PUBLIC, 'games', 'tide', 'art'), '/games/tide/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'tide', 'sounds'), '/games/tide/sounds/')
+  }
 };
 
 /* ---------- web server ---------- */
