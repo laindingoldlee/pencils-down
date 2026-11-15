@@ -15,6 +15,11 @@
  * Running out: with no face-down cards you can still ring. If someone else wins a bell round
  * while you have none, you are out. With two players left, the next bell round wins the game.
  * If nobody can flip and nobody rings, the game ends and the most cards wins.
+ *
+ * Reaction times: a ring is timed from the moment a colour first hit the target (on the server,
+ * so everyone is timed the same way). A correct ring that lands just after someone else's still
+ * gets its time back, and is a near miss if it arrived within 0.1s of the winning ring. The end screen ranks everyone's fastest
+ * and average correct ring.
  */
 const crypto = require('crypto');
 
@@ -30,6 +35,8 @@ const GRACE_MS = 450;             // a ring judged on the cards the player saw, 
 const COOL_MS = 1500;             // after a wrong ring, that player can't ring again for this long
 const STALL_MS = 5000;            // nobody can flip: the game ends after this long without a ring
 const STALL_SIGNAL_MS = 10000;    // ...or this long if there's a signal on the table nobody has rung
+const AWAY_MS = 320;              // "flip it away from yourself": you see your own new card this much later
+const NEAR_MS = 100;              // a correct ring this close behind the winner is a near miss
 
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Starlight Signal error:', e); } };
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -73,6 +80,9 @@ function start(ctx, settings) {
     comet: null,                                       // the comet card, while it's beside the bell
     phase: 'play', turn: null, turnEnds: 0, readyAt: 0,
     seq: 0, hist: [], cool: {},
+    times: Object.fromEntries(order.map(p => [p, []])),  // every correct ring's reaction time, in ms
+    wrongs: Object.fromEntries(order.map(p => [p, 0])),  // rings when there was no signal
+    late: new Set(), endedAt: 0,
     round: 1, result: null, nextAt: 0, stallAt: 0,
     log: [], winners: null, final: null, endWhy: '',
     timer: null
@@ -104,11 +114,27 @@ function signal(g) {
   return COLOURS.filter(c => t[c] === want);
 }
 /* Every change to what's on the table gets a number, and we remember what the signal was,
-   so a ring can be judged on the cards that player was looking at. */
-function record(g) {
+   so a ring can be judged on the cards that player was looking at.
+   It also remembers when the current signal first appeared, which starts the reaction clock.
+   holdPid: the player who flipped this card, if they see it a moment late ("flip it away"). */
+function record(g, holdPid) {
+  const now = Date.now();
+  const sig = signal(g);
+  const prev = g.hist[g.hist.length - 1];
+  let sigAt = 0, sigHold = null;
+  if (sig.length && prev && prev.sig.length && prev.target === target(g)) { sigAt = prev.sigAt; sigHold = prev.sigHold; }
+  else if (sig.length) { sigAt = now; sigHold = holdPid || null; }
   g.seq++;
-  g.hist.push({ seq: g.seq, at: Date.now(), sig: signal(g), target: target(g) });
+  g.hist.push({ seq: g.seq, at: now, sig, target: target(g), sigAt, sigHold });
   if (g.hist.length > 30) g.hist.shift();
+}
+/* How long a player took to ring after the signal appeared. The player who flipped the card
+   that made it saw it a moment later than everyone else, so that moment doesn't count.
+   A ring before the player could possibly have seen it is a lucky guess: it gets no time. */
+function reaction(h, pid, now) {
+  if (!h || !h.sigAt) return null;
+  const ms = now - h.sigAt - (h.sigHold === pid ? AWAY_MS : 0);
+  return ms < 0 ? null : ms;
 }
 
 /* ---------- turns ---------- */
@@ -156,31 +182,48 @@ function flip(g, pid, auto) {
     log(g, { k: 'flip', pid, card: pub(card), auto: !!auto });
     g.ctx.fx({ type: 'flip', pid, card: pub(card) });
   }
-  record(g);
+  record(g, !card.comet && g.s.away ? pid : null);
   beginTurn(g, nextFrom(g, pid));
 }
 
 /* ---------- the bell ---------- */
 function ring(g, pid, seenSeq) {
   if (!g.order.includes(pid)) return { ok: false, error: 'You’re watching this game.' };
-  if (g.out.includes(pid)) return { ok: false, error: 'You’re out, so you can’t ring the bell.' };
-  if (g.phase === 'result') return { ok: true, result: 'late' };
-  if (g.phase !== 'play') return { ok: false };
   const now = Date.now();
+  if (g.result && (g.phase === 'result' || (g.phase === 'over' && now - g.endedAt < RESULT_MS))) return lateRing(g, pid, now);
+  if (g.out.includes(pid)) return { ok: false, error: 'You’re out, so you can’t ring the bell.' };
+  if (g.phase !== 'play') return { ok: false };
   if ((g.cool[pid] || 0) > now) return { ok: true, result: 'cool' };
   // Right now, or on the cards they saw if those changed only a moment ago.
-  let sig = signal(g), want = target(g);
-  if (!sig.length && Number.isInteger(seenSeq) && seenSeq < g.seq) {
-    const seen = g.hist.find(h => h.seq === seenSeq);
-    const after = g.hist.find(h => h.seq === seenSeq + 1);
-    if (seen && after && now - after.at <= GRACE_MS && seen.sig.length) { sig = seen.sig; want = seen.target; }
+  let h = g.hist[g.hist.length - 1];
+  if (!h.sig.length && Number.isInteger(seenSeq) && seenSeq < g.seq) {
+    const seen = g.hist.find(x => x.seq === seenSeq);
+    const after = g.hist.find(x => x.seq === seenSeq + 1);
+    if (seen && after && now - after.at <= GRACE_MS && seen.sig.length) h = seen;
   }
-  if (sig.length) { win(g, pid, sig, want); return { ok: true, result: 'win' }; }
+  if (h.sig.length) { win(g, pid, h, now); return { ok: true, result: 'win' }; }
   wrong(g, pid);
   return { ok: true, result: 'wrong' };
 }
-function win(g, pid, sig, want) {
+/* Someone else just won this bell round. Nothing changes in the game, but a player who was
+   right on their heels gets their own time back, once a round. */
+function lateRing(g, pid, now) {
+  const r = g.result;
+  if (pid === r.pid || g.late.has(pid) || (g.out.includes(pid) && !r.out.includes(pid))) return { ok: true, result: 'late' };
+  g.late.add(pid);
+  const ms = reaction(r.h, pid, now);
+  if (ms === null) return { ok: true, result: 'late' };
+  g.times[pid].push(ms);
+  const behind = now - r.at;  // how long after the winning ring this one arrived
+  return { ok: true, result: 'late', ms, winnerMs: r.ms, behind, near: behind <= NEAR_MS };
+}
+function win(g, pid, h, now) {
   clear(g);
+  const sig = h.sig, want = h.target;
+  const ms = reaction(h, pid, now);
+  const pb = ms !== null && g.times[pid].length > 0 && ms < Math.min(...g.times[pid]);
+  if (ms !== null) g.times[pid].push(ms);
+  g.late = new Set();
   const before = alive(g).length;
   const won = [];
   // What was showing when the bell rang, so everyone can see why it was right.
@@ -192,10 +235,10 @@ function win(g, pid, sig, want) {
   // Anyone else with no face-down cards left is out.
   const outNow = alive(g).filter(p => p !== pid && !g.draw[p].length);
   g.out.push(...outNow);
-  g.result = { pid, sig, target: want, n: won.length, comet, out: outNow, tops };
-  log(g, { k: 'win', pid, sig, target: want, n: won.length, comet });
+  g.result = { pid, sig, target: want, n: won.length, comet, out: outNow, tops, ms, pb, at: now, h: { sigAt: h.sigAt, sigHold: h.sigHold } };
+  log(g, { k: 'win', pid, sig, target: want, n: won.length, comet, ms });
   for (const p of outNow) log(g, { k: 'out', pid: p });
-  g.ctx.fx({ type: 'win', pid, sig, target: want, n: won.length, comet, out: outNow });
+  g.ctx.fx({ type: 'win', pid, sig, target: want, n: won.length, comet, out: outNow, ms, pb });
   record(g);
   if (alive(g).length <= 1) return finish(g, 'last');
   if (before === 2) return finish(g, 'duel', [pid]);
@@ -214,6 +257,7 @@ function wrong(g, pid) {
     gave.push(p);
   }
   g.cool[pid] = Date.now() + COOL_MS;
+  g.wrongs[pid]++;
   log(g, { k: 'wrong', pid, n: gave.length, target: target(g) });
   g.ctx.fx({ type: 'wrong', pid, to: gave });
   // They may have just given away their last card: if it was their turn, move on.
@@ -227,6 +271,7 @@ function finish(g, why, winners) {
   clear(g);
   g.phase = 'over';
   g.turn = null;
+  g.endedAt = Date.now();
   g.endWhy = why;
   g.final = Object.fromEntries(g.order.map(p => [p, cardsOf(g, p)]));
   if (!winners) {
@@ -255,6 +300,14 @@ function playersChanged(g) {
 }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
+/* Fastest and average correct ring per player, fastest first; players with no correct ring last. */
+function reactionStats(g) {
+  return g.order.map(pid => {
+    const t = g.times[pid];
+    return { pid, best: t.length ? Math.min(...t) : null, avg: t.length ? Math.round(t.reduce((a, b) => a + b, 0) / t.length) : null, n: t.length, wrong: g.wrongs[pid] };
+  }).filter(x => x.n || x.wrong).sort((a, b) => (a.best === null) - (b.best === null) || a.best - b.best || a.wrong - b.wrong);
+}
+
 /* ---------- moves ---------- */
 function pick(g, pid, p) {
   if (p.a === 'ring') return ring(g, pid, Number.isInteger(p.seq) ? p.seq : null);
@@ -278,7 +331,9 @@ function view(g, viewer) {
     comet: g.comet ? pub(g.comet) : null, target: target(g),
     totals: g.s.totals ? totals(g) : null,
     turn: g.turn, readyAt: g.readyAt, turnEnds: g.turnEnds, stallAt: g.stallAt,
-    seq: g.seq, round: g.round, result: g.result, nextAt: g.nextAt,
+    seq: g.seq, round: g.round, nextAt: g.nextAt, awayMs: AWAY_MS, nearMs: NEAR_MS,
+    result: g.result ? Object.assign({}, g.result, { h: undefined }) : null,
+    reactions: g.phase === 'over' ? reactionStats(g) : null,
     cool: (g.cool[viewer] || 0) > Date.now() ? g.cool[viewer] : 0,
     log: g.log.slice(-40), winners: g.winners, final: g.final, endWhy: g.endWhy
   };
@@ -286,7 +341,7 @@ function view(g, viewer) {
 
 module.exports = {
   id: 'sl', name: 'Starlight Signal', minPlayers: MIN_PLAYERS,
-  COLOURS, FLIP_TIMES, defaults, cleanSettings, canStart,
+  COLOURS, FLIP_TIMES, defaults, cleanSettings, canStart, reactionStats,
   start, stop, pick, view, playersChanged, playerJoined,
   _signal: signal, _makeDeck: makeDeck // for tests
 };

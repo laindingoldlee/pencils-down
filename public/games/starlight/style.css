@@ -131,6 +131,26 @@
 .sl-totals .hot{background:color-mix(in srgb,var(--c) 35%,#0A0E2C);box-shadow:0 0 10px var(--c)}
 .sl-status{font-size:.92rem;line-height:1.3;background:rgba(8,10,34,.65);border-radius:10px;padding:4px 10px;max-width:100%}
 
+/* reaction times */
+.sl-status .rt{color:var(--gold)}
+.sl-status .pb{color:var(--gold);font-weight:700}
+.sl-status .nearmiss{color:#FFB547;font-weight:900;display:inline-block;animation:slnear .5s ease-out}
+@keyframes slnear{0%{transform:scale(1.6)}100%{transform:none}}
+.sl-banner.near{color:#FFE2B0;text-shadow:0 0 22px rgba(255,181,71,.9),0 6px 16px rgba(0,0,0,.7)}
+.sl-react{width:min(520px,100%);display:grid;gap:6px;text-align:left}
+.sl-react .eyebrow{font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--soft)}
+.sl-react .eyebrow small{text-transform:none;letter-spacing:0;font-weight:400}
+.sl-react table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;background:rgba(10,14,44,.6);border-radius:12px;overflow:hidden}
+.sl-react th,.sl-react td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+.sl-react tr:last-child td{border-bottom:0}
+.sl-react th{font-size:.75rem;color:var(--soft);font-weight:700}
+.sl-react th:nth-child(2),.sl-react td:nth-child(2){text-align:left;width:100%;white-space:normal}
+.sl-react td.pl{text-align:center;color:var(--soft);font-family:var(--font-display)}
+.sl-react td.t{font-family:var(--font-display);color:var(--gold)}
+.sl-react tr.me td{background:rgba(245,197,66,.08)}
+.sl-react small{color:var(--soft)}
+@media (max-width:480px){.sl-react th,.sl-react td{padding:5px 5px;font-size:.85rem}}
+
 /* end of the game */
 .sl-final{display:flex;flex-direction:column;align-items:center;gap:8px;text-align:center;padding:16px 8px 6px}
 .sl-final .trophy{width:min(180px,40vw);height:auto}

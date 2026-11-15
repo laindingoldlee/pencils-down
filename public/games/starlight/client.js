@@ -51,6 +51,7 @@ const L = {
 const cat = () => H.catalog.sl || { art: {}, sounds: {}, flipTimes: [2, 3, 4, 6] };
 const art = k => (cat().art || {})[k] || '';
 const nm = pid => (pid === H.st.you ? 'You' : H.nameOf(pid));
+const secs = ms => (ms / 1000).toFixed(2) + 's';
 const colourWord = (c, cap) => { const n = COL[c] ? COL[c].name : c; return cap ? n : n.toLowerCase(); };
 
 /* ---------- placeholder pictures ---------- */
@@ -172,6 +173,7 @@ function rulesList() {
     <li><b>☄ The comet:</b> when it’s flipped it goes beside the bell. Until someone wins a bell round, ring at <b>exactly 4</b> instead of 5.</li>
     <li>Out of face-down cards? Keep watching, you can still ring. If someone else wins a bell round while you have none, you’re out.</li>
     <li>With two players left, whoever wins the next bell round wins the game.</li>
+    <li>⏱ Reaction times are measured from the moment a colour hits the target. Ring right just after the winner and you still see your own time: within 0.1s of the winning ring is a <b>near miss</b>. The end screen ranks everyone’s fastest and average ring.</li>
   </ul>
   <table class="sl-qref"><tbody>
     <tr><td>No comet showing</td><td>Ring when one colour totals exactly 5</td></tr>
@@ -203,7 +205,16 @@ async function ringBell() {
   const r = await H.emit('pick', { a: 'ring', seq: seenSeq(g) });
   if (!r.ok) { if (r.error) H.toast(r.error); return; }
   const g2 = H.st && H.st.game;
-  if (r.result === 'late' && g2 && g2.result) H.toast(`Too late: ${nm(g2.result.pid)} rang first.`);
+  if (r.result === 'late' && g2 && g2.result) {
+    if (r.ms == null) H.toast(`Too late: ${nm(g2.result.pid)} rang first.`);
+    else {
+      // Someone beat you to it: show your own time beside theirs.
+      L.lateTime = { round: g2.round, ms: r.ms, near: r.near, behind: r.behind };
+      if (r.near) banner(`NEAR MISS!<small>${secs(r.behind)} behind ${esc(H.nameOf(g2.result.pid))} · your reaction: ${secs(r.ms)}</small>`, 'near');
+      if (g2.phase === 'over') H.toast(`${r.near ? `Near miss! ${secs(r.behind)} behind. ` : ''}Your reaction: ${secs(r.ms)}`);
+      H.render();
+    }
+  }
   if (r.result === 'cool') H.toast('Wait a moment before ringing again.');
 }
 async function flipCard() {
@@ -237,7 +248,7 @@ function trackMine(g, st) {
   const top = seat ? seat.top : null;
   const prev = L.mine;
   if (top && prev && prev.id !== top.id && g.settings.away && g.phase === 'play' && !holding()) {
-    L.holdUntil = Date.now() + HOLD_MS;
+    L.holdUntil = Date.now() + (g.awayMs || HOLD_MS);
     L.heldCard = prev.card;
     L.heldSeq = L.lastSeq;
     clearTimeout(L.holdTimer);
@@ -245,7 +256,7 @@ function trackMine(g, st) {
       L.holdUntil = 0;
       const st2 = H.st;
       if (st2 && st2.game && st2.game.id === 'sl') render(document.getElementById('main'), st2);
-    }, HOLD_MS + 10);
+    }, (g.awayMs || HOLD_MS) + 10);
   }
   L.mine = { id: top ? top.id : null, card: top };
   if (!holding()) L.lastSeq = g.seq;
@@ -327,13 +338,17 @@ function midHTML(g, st) {
   let status;
   if (res) {
     const what = res.sig.map(c => `<b style="color:${COL[c].color}">${colourWord(c, true)}</b>`).join(' and ');
-    status = `<b>${esc(nm(res.pid))}</b> rang first! ${what} = ${res.target} · +${res.n} card${res.n === 1 ? '' : 's'}`;
+    const lt = L.lateTime && L.lateTime.round === g.round && res.pid !== me ? L.lateTime : null;
+    const mine = !lt ? '' : lt.near ? ` · <span class="nearmiss">Near miss!</span> You: ${secs(lt.ms)}, ${secs(lt.behind)} behind` : ` · You: ${secs(lt.ms)}`;
+    const time = res.ms != null ? ` in <b class="rt">${secs(res.ms)}</b>` : '';
+    const best = res.pb && res.pid === me ? ' · <span class="pb">⚡ your best yet</span>' : '';
+    status = `<b>${esc(nm(res.pid))}</b> rang first${time}! ${what} = ${res.target} · +${res.n} card${res.n === 1 ? '' : 's'}${best}${mine}`;
   } else if (g.phase === 'play' && !g.turn) {
     status = `Nobody has a card to flip. Ring if you see a signal… <span id="slStall"></span>`;
   } else if (g.turn) {
     status = g.turn === me ? `<b>Your turn</b>: flip your card` : `${esc(H.nameOf(g.turn))}’s turn`;
   } else status = '';
-  const totals = g.totals ? `<div class="sl-totals">${COLOURS.map(c => {
+  const totals = g.totals && !res ? `<div class="sl-totals">${COLOURS.map(c => {
     const v = holding() ? '?' : g.totals[c];
     return `<span class="${v === g.target ? 'hot' : ''}" style="--c:${COL[c].color}"><i>${star(c)}</i>${v}</span>`;
   }).join('')}</div>` : '';
@@ -368,9 +383,20 @@ function finalHTML(g, st) {
   return `<div class="sl-final">${trophy ? `<img class="trophy" src="${esc(trophy)}" alt="">` : '<div class="trophy ph" aria-hidden="true">✦</div>'}
     <div class="sl-winner">${head}</div><p class="muted">${why}</p>
     <ol class="sl-sum">${rows}</ol>
+    ${reactionBoard(g, st)}
     <div class="row">${H.isHost()
       ? '<button type="button" class="btn primary big" data-act="again">Play again</button><button type="button" class="btn" data-act="toRoomNow">Back to the room</button>'
       : `<span class="muted">Waiting for ${esc(H.nameOf(st.hostPid))} to pick what’s next.</span>`}</div></div>`;
+}
+
+/* Reaction-time leaderboard: every correct ring counts, including ones just behind the winner. */
+function reactionBoard(g, st) {
+  const r = g.reactions || [];
+  if (!r.length) return '';
+  return `<div class="sl-react"><div class="eyebrow">Reaction times <small>· from the moment a colour hit the target</small></div>
+    <table><thead><tr><th></th><th>Player</th><th>Fastest</th><th>Average</th><th>Correct</th><th>Wrong</th></tr></thead><tbody>
+    ${r.map((x, i) => `<tr${x.pid === st.you ? ' class="me"' : ''}><td class="pl">${x.best === null ? '–' : i === 0 ? '⚡' : i + 1}</td><td>${esc(H.nameOf(x.pid))}${x.pid === st.you ? ' <small>(you)</small>' : ''}</td><td class="t">${x.best === null ? '–' : secs(x.best)}</td><td>${x.avg === null ? '–' : secs(x.avg)}</td><td>${x.n}</td><td>${x.wrong}</td></tr>`).join('')}
+    </tbody></table></div>`;
 }
 
 function logLine(e, st) {
@@ -380,7 +406,7 @@ function logLine(e, st) {
     case 'start': return `${p} ${e.pid === st.you ? 'flip' : 'flips'} first`;
     case 'flip': return `${p} flipped ${cd(e.card)}${e.auto ? ' <small class="muted">(timed out)</small>' : ''}`;
     case 'comet': return `☄ ${p} flipped <b>the comet</b>: ring at 4`;
-    case 'win': return `🔔 ${p} rang right (${e.sig.map(c => colourWord(c, true)).join(' + ')} = ${e.target}) and took ${e.n} card${e.n === 1 ? '' : 's'}`;
+    case 'win': return `🔔 ${p} rang right${e.ms != null ? ` in ${secs(e.ms)}` : ''} (${e.sig.map(c => colourWord(c, true)).join(' + ')} = ${e.target}) and took ${e.n} card${e.n === 1 ? '' : 's'}`;
     case 'wrong': return `✖ ${p} rang wrongly and gave away ${e.n} card${e.n === 1 ? '' : 's'}`;
     case 'out': return `${p} ${e.pid === st.you ? 'are' : 'is'} out`;
     case 'left': return `${p} left the game`;
@@ -421,7 +447,7 @@ function fx(e) {
     play('bell-right');
     setTimeout(() => play('collect'), 500);
     const what = e.sig.map(c => colourWord(c, true)).join(' + ');
-    banner(`🔔 ${esc(nm(e.pid)).toUpperCase()}${e.pid === st.you ? ' GOT IT' : ''}<small>${what} = ${e.target} · +${e.n} card${e.n === 1 ? '' : 's'}</small>`, 'good');
+    banner(`🔔 ${esc(nm(e.pid)).toUpperCase()}${e.pid === st.you ? ' GOT IT' : ''}<small>${what} = ${e.target}${e.ms != null ? ` · ${secs(e.ms)}` : ''} · +${e.n} card${e.n === 1 ? '' : 's'}${e.pb && e.pid === st.you ? ' · ⚡ your best yet' : ''}</small>`, 'good');
     if (e.out && e.out.length) {
       setTimeout(() => play('out'), 900);
       banner(`${e.out.map(p => esc(nm(p))).join(', ')} ${e.out.includes(st.you) && e.out.length === 1 ? 'are' : e.out.length > 1 ? 'are' : 'is'} out<small>No face-down cards left</small>`, 'bad');
