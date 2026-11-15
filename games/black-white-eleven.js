@@ -391,9 +391,105 @@ function view(g, viewer) {
   };
 }
 
+/* ---------- bots ----------
+   A practice opponent. It decides only from view(g, pid) — its own numbers, the colors and
+   positions of everyone's tiles, the face-up numbers — plus what it was told itself (a No it
+   accepted). It guesses the hidden tile it can narrow down most, naming a number it can't
+   see anywhere that fits between the known neighbours in that row; lies now and then
+   (more when the pot is small); calls a bluff more readily the surer it was. */
+const botMemory = new WeakMap(); // game -> { pid: { told: { tileId: Set(values) }, cands } }
+function memOf(g, pid) {
+  let all = botMemory.get(g);
+  if (!all) botMemory.set(g, all = {});
+  return all[pid] || (all[pid] = { told: {}, cands: 12 });
+}
+/* The values (numbers, -1 for a wildcard) a hidden tile could have, as seen from v: not a
+   tile it can see anywhere, and in order between the nearest face-up numbers in that row.
+   Without wildcards every hidden tile in between needs a key of its own, which narrows it more. */
+function candidates(v, owner, idx, told) {
+  const row = v.hands[owner], tile = row[idx], C = v.colors, gap = v.wilds ? 0 : 1;
+  const seen = new Set();
+  for (const pid of v.order) for (const x of v.hands[pid]) if (x.n !== null) seen.add(x.c + ':' + x.n);
+  if (v.mine && v.mine.pending) seen.add(v.mine.pending.c + ':' + v.mine.pending.n);
+  const key = x => x.n * C + x.c;
+  let lo = -1 + gap * idx, hi = v.wilds ? Infinity : 12 * C - (row.length - 1 - idx);
+  for (let i = idx - 1; i >= 0; i--) if (row[i].n !== null && row[i].n >= 0) { lo = key(row[i]) + gap * (idx - i - 1); break; }
+  for (let i = idx + 1; i < row.length; i++) if (row[i].n !== null && row[i].n >= 0) { hi = key(row[i]) - gap * (i - idx - 1); break; }
+  const out = [];
+  for (let n = 0; n <= 11; n++) {
+    const k = n * C + tile.c;
+    if (!seen.has(tile.c + ':' + n) && k > lo && k < hi) out.push(n);
+  }
+  if (v.wilds && !seen.has(tile.c + ':-1')) out.push(-1);
+  const fresh = told ? out.filter(n => !told.has(n)) : out;
+  if (fresh.length) return fresh;
+  if (out.length) return out;
+  return v.wilds ? [-1, ...Array.from({ length: 12 }, (_, n) => n)] : Array.from({ length: 12 }, (_, n) => n);
+}
+function bot(g, pid) {
+  const v = view(g, pid);
+  const r = a => a[crypto.randomInt(a.length)];
+  const drawColor = () => {
+    const ok = v.pool.map((k, c) => ({ k, c })).filter(x => x.k > 0);
+    if (!ok.length) return null;
+    let roll = crypto.randomInt(ok.reduce((s, x) => s + x.k, 0));
+    for (const x of ok) { if (roll < x.k) return x.c; roll -= x.k; }
+    return ok[0].c;
+  };
+  const place = () => ({ move: { a: 'place', slot: v.mine.slots.from + crypto.randomInt(v.mine.slots.to - v.mine.slots.from + 1) } });
+  if (v.phase === 'setup') {
+    if (!v.order.includes(pid) || v.setupDone.includes(pid)) return null;
+    if (v.mine) return place();
+    const c = drawColor();
+    return c === null ? null : { move: { a: 'draw', color: c } };
+  }
+  if (v.phase !== 'play' || !v.turn) return null;
+  const t = v.turn, me = memOf(g, pid);
+  if (t.step === 'answer') {
+    if (t.guess.target !== pid) return null;
+    if (!t.guess.right) return { move: { a: 'answer', yes: false }, delay: 1500 + crypto.randomInt(2000) };
+    const hidden = v.hands[pid].filter(x => !x.up).length;
+    const lie = hidden > 1 && Math.random() < (v.pot <= 1 ? 0.35 : v.pot === 2 ? 0.2 : 0.1);
+    return { move: { a: 'answer', yes: !lie }, delay: 1500 + crypto.randomInt(2000) };
+  }
+  if (t.pid !== pid) return null;
+  if (t.step === 'draw') { const c = drawColor(); return { move: { a: 'draw', color: c === null ? 0 : c } }; }
+  if (t.step === 'place') return place();
+  if (t.step === 'guess') {
+    const opts = [];
+    for (const o of v.order) {
+      if (o === pid || v.dead.includes(o)) continue;
+      v.hands[o].forEach((x, i) => {
+        if (x.up) return;
+        const cands = candidates(v, o, i, me.told[x.id]);
+        opts.push({ target: o, id: x.id, cands, w: 1 / (cands.length * cands.length) });
+      });
+    }
+    let roll = Math.random() * opts.reduce((s, o) => s + o.w, 0), choice = opts[opts.length - 1];
+    for (const o of opts) { if (roll < o.w) { choice = o; break; } roll -= o.w; }
+    const value = r(choice.cands);
+    me.cands = choice.cands.length;
+    return { move: { a: 'guess', target: choice.target, id: choice.id, value: value === -1 ? 'wild' : value } };
+  }
+  if (t.step === 'verdict') {
+    // Calling costs as many tiles as the pot if the No was true, so be choosier when it's big.
+    const sure = me.cands <= 1 ? 0.9 : Math.min(0.6, 1.2 / me.cands);
+    const call = Math.random() < Math.max(0.06, sure * (v.pot >= 3 ? 0.6 : 1));
+    const told = me.told[t.guess.id] || (me.told[t.guess.id] = new Set());
+    told.add(t.guess.value === -1 ? -1 : t.guess.value);
+    return { move: { a: call ? 'call' : 'accept' } };
+  }
+  if (t.step === 'more') {
+    const hidden = v.hands[pid].filter(x => !x.up).length;
+    const p = (v.poolLeft ? (hidden >= 3 ? 0.55 : hidden === 2 ? 0.35 : 0.15) : 0.7) * Math.pow(0.7, t.right - 1);
+    return { move: { a: Math.random() < p ? 'more' : 'stop' } };
+  }
+  return null;
+}
+
 module.exports = {
   id: 'bw11', name: 'Black, White & Eleven', minPlayers: 2,
   COLORS, recommendedColors, defaults, cleanSettings,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
   slotsFor // for tests
 };

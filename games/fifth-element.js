@@ -275,9 +275,54 @@ function view(g) {
   };
 }
 
+/* ---------- bots ----------
+   A practice opponent with a human-ish reaction time. It works the answer out from the
+   card exactly as everyone sees it (view()), takes 2-5 seconds (a bit longer when both
+   items are in the wrong color, so the answer is the "fifth" one) and clicks a wrong item
+   about 15% of the time, which also burns one of its cards, like anyone else's.
+
+   The server asks bot() once to schedule a move and again when the timer fires, and plays
+   whatever that second answer is straight away. A timer set for one card can fire on the
+   next one (someone else won it first), so the bot remembers whether its last answer was a
+   plan; if so this call is the timer firing, and a move that isn't due yet returns null.
+   The server then asks again right away and gets the remaining wait. */
+const BOT_REACT_MS = [2000, 5000];
+const BOT_HARD_MS = 800;
+const BOT_WRONG = 0.15;
+const botState = new WeakMap();   // game -> { pid: { expecting, seq, at, item } }
+function answerOf(shows) {
+  const own = shows.find(s => s.item === s.color);
+  if (own) return own.item;
+  return [0, 1, 2, 3, 4].find(k => !shows.some(s => s.item === k || s.color === k));
+}
+function bot(g, pid) {
+  let all = botState.get(g);
+  if (!all) botState.set(g, all = {});
+  const st = all[pid] || (all[pid] = { expecting: false, seq: -1 });
+  const fromTimer = st.expecting;
+  st.expecting = false;
+  const v = view(g);
+  if (v.phase !== 'card' || !v.card) return null;
+  if (v.sudden && !v.sudden.includes(pid)) return null;
+  if (v.locked.includes(pid)) return null;
+  if (st.seq !== v.seq) {
+    const right = answerOf(v.card.shows);
+    const hard = !v.card.shows.some(s => s.item === s.color);
+    const wrong = [0, 1, 2, 3, 4].filter(k => k !== right);
+    st.seq = v.seq;
+    st.item = Math.random() < BOT_WRONG ? wrong[crypto.randomInt(wrong.length)] : right;
+    st.at = v.shownAt + between(...BOT_REACT_MS) + (hard ? BOT_HARD_MS : 0);
+  }
+  const wait = st.at - Date.now();
+  const move = { seq: st.seq, item: st.item };
+  if (fromTimer) return wait > 0 ? null : { move };
+  st.expecting = true;
+  return { move, delay: Math.max(0, wait) };
+}
+
 module.exports = {
   id: 'fifth', name: 'The Fifth Element', minPlayers: 2,
   THEMES, DECK_SIZES, defaults, cleanSettings,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
   allCards // for tests
 };
