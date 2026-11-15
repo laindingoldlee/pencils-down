@@ -38,6 +38,7 @@ const STALL_SIGNAL_MS = 10000;    // ...or this long if there's a signal on the 
 const AWAY_MS = 320;              // "flip it away from yourself": you see your own new card this much later
 const NEAR_MS = 100;              // a correct ring this close behind the winner is a near miss
 
+const between = (lo, hi) => lo + crypto.randomInt(hi - lo + 1);
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Starlight Signal error:', e); } };
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto.randomInt(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pub = c => (c ? (c.comet ? { id: c.id, comet: true } : { id: c.id, c: c.c, n: c.n }) : null);
@@ -339,9 +340,64 @@ function view(g, viewer) {
   };
 }
 
+/* ---------- practice bots ----------
+   A bot sees the table like everyone else. It flips on its turn after a short pause, and when
+   a colour hits the target it rings 0.65-1.5s later (a little slower than a quick person, so
+   bots are beatable). When a colour is one star off the target it sometimes rings by mistake,
+   and pays for it like anyone else.
+
+   The server asks bot() once to schedule a move and again when the timer fires, then plays
+   whatever that second answer is. The table may have changed in between, so the bot
+   remembers whether its last answer was a plan: if so, this call is the timer firing, and a
+   move that isn't due yet returns null (the server then asks again and gets the new wait). */
+const BOT_RING_MS = [650, 1500];
+const BOT_FLIP_MS = [350, 1200];
+const BOT_OOPS = 0.06;            // chance of a wrong ring when a colour is one star off
+const botState = new WeakMap();   // game -> { pid: { expecting, key, at, kind } }
+function bot(g, pid) {
+  let all = botState.get(g);
+  if (!all) botState.set(g, all = {});
+  const st = all[pid] || (all[pid] = { expecting: false, key: '', done: '', rolled: -1 });
+  const fromTimer = st.expecting;
+  st.expecting = false;
+  if (g.phase !== 'play' || !g.order.includes(pid) || g.out.includes(pid)) return null;
+  const now = Date.now();
+  const h = g.hist[g.hist.length - 1];
+  // Ring when there's a signal (or, now and then, when a colour is one star off).
+  let ringKey = '', ringAt = 0;
+  if ((g.cool[pid] || 0) <= now) {
+    if (h.sig.length) {
+      ringKey = 'ring:' + h.sigAt;
+      ringAt = h.sigAt + (h.sigHold === pid ? AWAY_MS : 0);
+    } else {
+      const t = totals(g), want = target(g);
+      if (st.rolled !== g.seq) {
+        st.rolled = g.seq;
+        st.oops = COLOURS.some(c => t[c] && Math.abs(t[c] - want) === 1) && Math.random() < BOT_OOPS;
+      }
+      if (st.oops) { ringKey = 'oops:' + g.seq; ringAt = now; }
+    }
+  }
+  let key, kind, base, range;
+  if (ringKey && st.done !== ringKey) { key = ringKey; kind = 'ring'; base = ringAt; range = BOT_RING_MS; }
+  else if (g.turn === pid) { key = 'flip:' + g.seq; kind = 'flip'; base = Math.max(now, g.readyAt); range = BOT_FLIP_MS; }
+  else { st.key = ''; return null; }
+  if (st.key !== key) { st.key = key; st.at = base + between(...range); }
+  const wait = st.at - now;
+  const move = kind === 'ring' ? { a: 'ring', seq: g.seq } : { a: 'flip' };
+  if (fromTimer) {
+    if (wait > 0) return null;
+    if (kind === 'ring') st.done = key;  // once per signal
+    return { move };
+  }
+  st.expecting = true;
+  return { move, delay: Math.max(0, wait) };
+}
+
 module.exports = {
   id: 'sl', name: 'Starlight Signal', minPlayers: MIN_PLAYERS,
   COLOURS, FLIP_TIMES, defaults, cleanSettings, canStart, reactionStats,
-  start, stop, pick, view, playersChanged, playerJoined,
+  start, stop, pick, view, playersChanged, playerJoined, bot,
+  result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _signal: signal, _makeDeck: makeDeck // for tests
 };

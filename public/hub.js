@@ -292,13 +292,22 @@ function noticeMyMove() {
   S.lastMove = msg;
 }
 
-/* ---------- fastest Fifth Element reactions tonight ---------- */
+/* ---------- fastest reactions tonight, one list per speed game ---------- */
+const REACTION_WHAT = { fifth: 'each player’s best correct click', sl: 'each player’s best correct bell ring' };
 function reactionBoard(st) {
-  const r = st.reactions || [];
-  if (!r.length) return '';
+  const groups = (st.reactions || []).filter(x => x.list && x.list.length);
+  if (!groups.length) return '';
+  const list = r => `<ol class="tally">${r.map((x, i) => `<li><span class="place">${i + 1}</span>${player(x.pid) ? avatar(x.pid, 30) : '<span></span>'}<span class="nm">${esc((player(x.pid) || {}).name || x.name)}</span><span class="wins">${(x.best / 1000).toFixed(2)}s</span></li>`).join('')}</ol>`;
+  if (groups.length === 1) {
+    const g = groups[0];
+    return `<section class="panel">
+    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">${esc(g.name)} · ${esc(REACTION_WHAT[g.game] || 'each player’s best')}</span></header>
+    ${list(g.list)}
+  </section>`;
+  }
   return `<section class="panel">
-    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">The Fifth Element · each player’s best correct click</span></header>
-    <ol class="tally">${r.map((x, i) => `<li><span class="place">${i + 1}</span>${player(x.pid) ? avatar(x.pid, 30) : '<span></span>'}<span class="nm">${esc((player(x.pid) || {}).name || x.name)}</span><span class="wins">${(x.best / 1000).toFixed(2)}s</span></li>`).join('')}</ol>
+    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">Each player’s best, game by game</span></header>
+    <div class="board">${groups.map(g => `<div><h3 class="boardh">${esc(g.name)} <small class="muted">· ${esc(REACTION_WHAT[g.game] || 'best')}</small></h3>${list(g.list)}</div>`).join('')}</div>
   </section>`;
 }
 

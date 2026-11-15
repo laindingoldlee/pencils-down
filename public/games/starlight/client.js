@@ -44,9 +44,10 @@ const HOLD_MS = 320; // "flip it away from yourself": you see your own card this
 
 const L = {
   lastHTML: '', code: '', newAt: {}, seen: {}, mine: null, holdUntil: 0, heldCard: null, heldSeq: 0, lastSeq: 0,
-  holdTimer: null, queue: [], showing: false, audio: {}, ctx: null,
-  mute: (() => { try { return localStorage.getItem('sl.mute') === '1'; } catch (e) { return false; } })()
+  holdTimer: null, queue: [], showing: false, audio: {}, ctx: null
 };
+// Sound follows the volume slider in the site's top bar.
+const vol = () => (window.Shared ? Shared.volume() : 1);
 
 const cat = () => H.catalog.sl || { art: {}, sounds: {}, flipTimes: [2, 3, 4, 6] };
 const art = k => (cat().art || {})[k] || '';
@@ -118,11 +119,11 @@ function synth(kind) {
     const ctx = L.ctx || (L.ctx = new AC());
     if (ctx.state === 'suspended') ctx.resume();
     const t = ctx.currentTime;
-    const tone = (freq, start, dur, type, vol) => {
+    const tone = (freq, start, dur, type, v) => {
       const o = ctx.createOscillator(), gn = ctx.createGain();
       o.type = type; o.frequency.setValueAtTime(freq, t + start);
       gn.gain.setValueAtTime(0.0001, t + start);
-      gn.gain.exponentialRampToValueAtTime(vol, t + start + 0.01);
+      gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, v * vol()), t + start + 0.01);
       gn.gain.exponentialRampToValueAtTime(0.0001, t + start + dur);
       o.connect(gn).connect(ctx.destination); o.start(t + start); o.stop(t + start + dur + 0.05);
     };
@@ -135,12 +136,13 @@ function synth(kind) {
   } catch (e) { /* sound is a nice-to-have */ }
 }
 function play(kind) {
-  if (L.mute) return;
+  if (!vol()) return;
   const url = (cat().sounds || {})[kind];
   if (!url) return synth(kind);
   try {
     const a = L.audio[kind] || (L.audio[kind] = new Audio(url));
     a.currentTime = 0;
+    a.volume = vol();
     const p = a.play();
     if (p && p.catch) p.catch(() => {});
   } catch (e) { /* ignore */ }
@@ -225,12 +227,6 @@ async function flipCard() {
 }
 H.on('sl-ring', () => ringBell());
 H.on('sl-flip', () => flipCard());
-H.on('sl-mute', () => {
-  L.mute = !L.mute;
-  try { localStorage.setItem('sl.mute', L.mute ? '1' : '0'); } catch (e) {}
-  if (!L.mute) synth('flip');
-  H.render();
-});
 document.addEventListener('keydown', e => {
   const g = H.st && H.st.game;
   if (!g || g.id !== 'sl' || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -273,7 +269,6 @@ function render(main, st) {
       <div class="sl-top">
         <div class="sl-title">${logo ? `<img src="${esc(logo)}" alt="Starlight Signal">` : 'Starlight Signal'}</div>
         ${g.phase === 'over' ? '' : `<span class="sl-chip${g.comet ? ' comet' : ''}">${targetBadge(g)}</span>`}
-        <button type="button" class="linkbtn sl-mute" data-act="sl-mute" aria-pressed="${!L.mute}">${L.mute ? '🔇<span class="t"> Sound off</span>' : '🔊<span class="t"> Sound on</span>'}</button>
         ${H.dd('sl-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => logLine(e, st)).filter(Boolean).map(x => `<li>${x}</li>`).join('')}</ol>`, 'sl-log')}
         ${H.dd('sl-rules', 'How to play', rulesList(), 'sl-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}

@@ -173,7 +173,7 @@ function makeRoom(code) {
     game: null,          // a game being played inside the room
     pencils: false,      // a Pencils Down game was opened from this room
     wins: [],            // tonight's results, for the room scoreboard
-    reactions: {},       // fastest Fifth Element reaction per player tonight
+    reactions: {},       // fastest reaction per player tonight, per game: { fifth: { pid: {...} }, sl: {...} }
     hostTimer: null, lastActive: Date.now()
   };
   rooms.set(code, room);
@@ -190,12 +190,14 @@ function publicState(room, forPid) {
     settings: room.settings,
     pencils: room.pencils,
     wins: room.wins,
-    reactions: Object.values(room.reactions).sort((a, b) => a.best - b.best),
+    reactions: Object.entries(room.reactions).map(([game, byPid]) => ({
+      game, name: GAME_NAMES[game] || game, list: Object.values(byPid).sort((a, b) => a.best - b.best)
+    })),
     game: room.game ? GAMES[room.game.id].view(room.game, forPid) : null,
     serverNow: Date.now()
   };
 }
-const GAME_NAMES = { pencils: 'Pencils Down', fifth: 'The Fifth Element', bw11: 'Black, White & Eleven', spell: 'Spellbound Mayhem', t7: 'The Triple Seven' };
+const GAME_NAMES = { pencils: 'Pencils Down', fifth: 'The Fifth Element', bw11: 'Black, White & Eleven', spell: 'Spellbound Mayhem', t7: 'The Triple Seven', sl: 'Starlight Signal' };
 function recordWin(room, game, winners, names) {
   room.wins.push({ game, name: GAME_NAMES[game] || game, at: Date.now(),
     winners: winners.map(pid => ({ pid, name: (names && names[pid]) || (room.players.get(pid) || {}).name || 'Someone' })) });
@@ -210,11 +212,15 @@ function broadcast(room) {
     if (w) {
       g.recorded = true;
       recordWin(room, g.id, w);
-      // Fifth Element: keep each player's fastest reaction of the night.
-      if (g.id === 'fifth') for (const r of fifth.reactionStats(g)) {
-        const cur = room.reactions[r.pid];
-        const name = (room.players.get(r.pid) || {}).name || 'Someone';
-        if (!cur || r.best < cur.best) room.reactions[r.pid] = { pid: r.pid, name, best: r.best };
+      // Speed games (The Fifth Element, Starlight Signal): keep each player's fastest reaction of the night.
+      if (GAMES[g.id].reactionStats) {
+        const byPid = room.reactions[g.id] || (room.reactions[g.id] = {});
+        for (const r of GAMES[g.id].reactionStats(g)) {
+          if (r.best == null) continue;
+          const cur = byPid[r.pid];
+          const name = (room.players.get(r.pid) || {}).name || 'Someone';
+          if (!cur || r.best < cur.best) byPid[r.pid] = { pid: r.pid, name, best: r.best };
+        }
       }
     }
   }
