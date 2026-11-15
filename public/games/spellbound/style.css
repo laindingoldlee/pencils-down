@@ -220,3 +220,9 @@
 .sp-flycard.shown .cap{opacity:1}
 .sp-flycard.shown .front{box-shadow:0 0 0 3px #F0C75E,0 0 34px rgba(240,199,94,.8)}
 .sp-cast img.incoming{visibility:hidden}
+/* big tables: keep your own seat from growing into your neighbours' */
+.sp.fitted .sp-round.some .spspot.mine{--cw:clamp(30px,calc(var(--fit-h) * .058),48px)}
+.sp.fitted .sp-round.many .spspot.mine{--cw:clamp(28px,calc(var(--fit-h) * .048),40px)}
+/* 7+ players: cards stop growing past a size where seats around the table would touch */
+.sp.fitted .sp-round.many{--cw:clamp(22px,calc(var(--fit-h) * .046),32px)}
+.sp.fitted .sp-round.many .spspot.mine{--cw:clamp(26px,calc(var(--fit-h) * .044),34px)}

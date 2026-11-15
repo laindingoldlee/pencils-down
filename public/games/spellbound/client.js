@@ -242,7 +242,37 @@ function render(main, st) {
       ${actHTML(g, st)}
     </section>`;
   });
+  // After the page has sized the table (hub.js fits the game to the window), pull any seat
+  // that sticks out of the table back inside, so side seats never get cut off or slide under
+  // the cast-stones panel.
+  requestAnimationFrame(keepSeatsInside);
 }
+function keepSeatsInside() {
+  const round = document.querySelector('.sp .sp-round');
+  if (!round) return;
+  const sec = round.closest('section.sp');
+  const zoom = parseFloat(sec && sec.style.zoom) || 1;
+  const box = round.getBoundingClientRect();
+  const pad = 4;
+  for (const spot of round.querySelectorAll('.spspot')) {
+    spot.style.marginLeft = '0px';
+    spot.style.marginTop = '0px';
+    const r = spot.getBoundingClientRect();
+    let dx = 0, dy = 0;
+    if (r.width < box.width - 2 * pad) {
+      if (r.left < box.left + pad) dx = box.left + pad - r.left;
+      else if (r.right > box.right - pad) dx = box.right - pad - r.right;
+    }
+    if (r.height < box.height - 2 * pad) {
+      if (r.top < box.top + pad) dy = box.top + pad - r.top;
+      else if (r.bottom > box.bottom - pad) dy = box.bottom - pad - r.bottom;
+    }
+    if (dx) spot.style.marginLeft = (dx / zoom) + 'px';
+    if (dy) spot.style.marginTop = (dy / zoom) + 'px';
+  }
+}
+let spResizeT = null;
+window.addEventListener('resize', () => { clearTimeout(spResizeT); spResizeT = setTimeout(keepSeatsInside, 200); });
 
 function actHTML(g, st) {
   const me = st.you, t = g.turn;
