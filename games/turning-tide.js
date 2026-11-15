@@ -4,6 +4,8 @@
  *
  * 78 cards: 56 Crew (Tide, Powder, Gale and Stone, numbered 2-15), 12 Captain's Signs
  * (1-12, the zodiac, each belonging to a force) and 10 Legendary Ships (0-9, no force).
+ * Ship 0 is the Sun Ship: it counts as 10 whenever numbers are compared, fights and
+ * tie-breaks alike. A card's v is the value that's compared; n is the number printed on it.
  * 16 cards go face down in a 4x4 chart, everyone gets 5, the rest are the draw pile.
  *
  * On your turn, do one thing:
@@ -38,9 +40,9 @@ const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = crypto
 function makeDeck() {
   const deck = [];
   let id = 1;
-  for (const f of FORCES) for (let n = 2; n <= 15; n++) deck.push({ id: id++, t: 'crew', f, n });
-  for (let n = 1; n <= 12; n++) deck.push({ id: id++, t: 'sign', f: SIGN_FORCE[(n - 1) % 4], n });
-  for (let n = 0; n <= 9; n++) deck.push({ id: id++, t: 'ship', f: null, n });
+  for (const f of FORCES) for (let n = 2; n <= 15; n++) deck.push({ id: id++, t: 'crew', f, n, v: n });
+  for (let n = 1; n <= 12; n++) deck.push({ id: id++, t: 'sign', f: SIGN_FORCE[(n - 1) % 4], n, v: n });
+  for (let n = 0; n <= 9; n++) deck.push({ id: id++, t: 'ship', f: null, n, v: n === 0 ? 10 : n });
   return deck;
 }
 /* Does attacker a defeat defender d? Equal numbers with no counter: nobody wins. */
@@ -49,7 +51,7 @@ function beats(a, d) {
     if (BEATS[a.f] === d.f) return true;
     if (BEATS[d.f] === a.f) return false;
   }
-  return a.n > d.n;
+  return a.v > d.v;
 }
 
 /* ---------- settings ---------- */
@@ -198,7 +200,7 @@ function endGame(g) {
   g.turn = null;
   const rows = g.order.map(pid => {
     const mine = g.grid.filter(c => c.owner === pid);
-    return { pid, locations: mine.length, hand: g.hands[pid].length, sum: mine.reduce((a, c) => a + top(c).n, 0) };
+    return { pid, locations: mine.length, hand: g.hands[pid].length, sum: mine.reduce((a, c) => a + top(c).v, 0) };
   });
   // Most locations, then fewer cards in hand, then the lower total.
   rows.sort((a, b) => b.locations - a.locations || a.hand - b.hand || a.sum - b.sum);
@@ -220,7 +222,7 @@ function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
 /* ---------- what each player sees ---------- */
-const pub = c => ({ t: c.t, f: c.f, n: c.n });
+const pub = c => ({ t: c.t, f: c.f, n: c.n, v: c.v });
 function view(g, viewer) {
   const over = g.phase === 'final';
   return {

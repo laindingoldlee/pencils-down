@@ -1,0 +1,134 @@
+/* The Turning Tide: a night sea with a 4x4 chart of square parchment cards. */
+.tt{--sea:#0B1A2E;--sea-2:#13304F;--ink:#EEF4FF;--soft:#A8BDD8;--gold:#E6B94E;--parch:#F3E8CC;--parch-2:#E4D3A8;--bad:#FF8A80;
+  background:radial-gradient(120% 90% at 50% 0%,var(--sea-2),var(--sea) 70%);color:var(--ink);border-radius:18px;box-shadow:var(--shadow);
+  padding:14px 16px 18px;display:flex;flex-direction:column;gap:12px;margin-bottom:16px}
+.tt *{min-width:0}
+.tt .muted{color:var(--soft)}
+.tt .linkbtn{color:var(--soft)}
+.tt .linkbtn.armed{color:var(--bad)}
+.tt .btn{border-color:var(--ink);color:var(--ink)}
+.tt .btn.primary{background:var(--gold);border-color:var(--gold);color:#1B1606}
+.tt-top{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+.tt-title{font-family:var(--font-display);font-size:1.1rem;color:var(--gold);margin-right:auto;line-height:1.1}
+.tt-title small{font-family:var(--font-body);font-size:.85rem;color:var(--soft);margin-left:8px}
+.tt-logo{height:44px;width:auto;margin-right:auto}
+.tt-count{font-size:.88rem;color:var(--soft);white-space:nowrap}
+.tt-count b{color:var(--ink)}
+
+.tt-main{display:flex;flex-direction:column;gap:12px}
+@media (min-width:900px){.tt-main{flex-direction:row;align-items:flex-start}.tt-side{width:330px;flex:none}.tt-table{flex:1}}
+
+/* the table: seats on the four sides of the chart, yours at the bottom */
+.tt-table{display:grid;grid-template-columns:auto minmax(0,1fr) auto;grid-template-rows:auto auto auto;
+  grid-template-areas:". top ." "left sea right" ". bottom .";gap:8px;align-items:center;justify-items:center}
+.tt-sea{grid-area:sea;width:100%;display:grid;place-items:center}
+.tt-chart{--gap:clamp(4px,1.2vw,8px);width:min(100%,560px);aspect-ratio:1;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));
+  gap:var(--gap);padding:var(--gap);border-radius:16px;transition:transform .5s ease;
+  background:linear-gradient(rgba(6,16,30,.55),rgba(6,16,30,.55)),var(--table,none) center/cover,repeating-linear-gradient(0deg,transparent 0 24px,rgba(168,189,216,.05) 24px 25px),repeating-linear-gradient(90deg,transparent 0 24px,rgba(168,189,216,.05) 24px 25px),#0E2440;
+  box-shadow:inset 0 0 0 1.5px rgba(168,189,216,.25),0 10px 30px rgba(0,0,0,.35)}
+.tt-cell{position:relative;display:grid;min-height:0;container-type:size}
+.tt-cell > .tc,.tt-rot{width:100%;height:100%}
+.tt-rot{position:relative;display:grid;transition:transform .35s ease}
+.tt-rot > .tc{width:100%;height:100%}
+.tt-cell .depth{position:absolute;left:50%;top:-7px;transform:translateX(-50%);font:700 .66rem var(--font-body);background:#0B1A2E;color:var(--ink);border:1px solid var(--soft);border-radius:999px;padding:0 5px;z-index:5}
+.tt-cell .gain{position:absolute;top:-7px;right:-7px;z-index:3;font:700 .74rem var(--font-body);background:var(--gold);color:#1B1606;border-radius:999px;padding:1px 6px;pointer-events:none;box-shadow:0 2px 6px rgba(0,0,0,.4)}
+.tt-cell.last::after{content:"";position:absolute;inset:-4px;border:2px dashed var(--gold);border-radius:12px;pointer-events:none}
+.tt-cell.flash .tc{animation:ttflash 1.4s ease-out}
+@keyframes ttflash{0%,45%{box-shadow:0 0 0 4px #fff,0 0 26px 10px rgba(255,255,255,.85)}}
+
+.tt-seat{display:flex;align-items:center;gap:8px;padding:5px 10px 5px 5px;border-radius:999px;background:rgba(0,0,0,.25);border:2px solid transparent;max-width:100%}
+.tt-seat .av{box-shadow:0 0 0 3px var(--own)}
+.tt-seat .who{display:grid;line-height:1.15}
+.tt-seat .n{font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tt-seat small{display:flex;gap:8px;color:var(--soft);font-size:.78rem;white-space:nowrap}
+.tt-seat em{font-style:normal;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--gold)}
+.tt-seat.turn{border-color:var(--gold);background:rgba(230,185,78,.12)}
+.s-bottom{grid-area:bottom}.s-top{grid-area:top}.s-left{grid-area:left}.s-right{grid-area:right}
+.s-left,.s-right{flex-direction:column;border-radius:16px;padding:8px 6px;text-align:center;max-width:92px}
+.s-left .who,.s-right .who{justify-items:center}
+.s-left small,.s-right small{flex-direction:column;gap:0}
+
+/* cards: square, so they turn cleanly to face their owner */
+.tc{--fc:#888;--own:transparent;position:relative;display:block;aspect-ratio:1;width:var(--w,84px);container-type:inline-size;padding:0;border:0;border-radius:10%;
+  background:var(--face,none) center/cover,linear-gradient(160deg,var(--parch),var(--parch-2));color:#2A2112;text-align:center;font-family:Georgia,"Times New Roman",serif;
+  box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--fc) 70%,#000),0 2px 0 rgba(0,0,0,.25),0 4px 10px rgba(0,0,0,.3);overflow:hidden}
+.tc::before{content:"";position:absolute;inset:0 0 auto 0;height:7%;background:var(--fc)}
+.tc.owned::after{content:"";position:absolute;inset:0;border-radius:inherit;box-shadow:inset 0 0 0 max(3px,6cqw) var(--own);z-index:4;pointer-events:none}
+.tc .cn{position:absolute;top:9%;left:9%;font-weight:700;font-size:24cqw;line-height:.9;color:var(--fc);z-index:2;text-shadow:0 1px 0 rgba(255,255,255,.6)}
+.tc .cn i{font-style:normal;font-size:.5em;vertical-align:top;margin-left:1px}
+.tc .cn.r{top:auto;left:auto;bottom:9%;right:9%;transform:rotate(180deg)}
+.tc .em{position:absolute;inset:22% 20% 24%;display:grid;place-items:center}
+.tc .em > svg,.tc .em > .ico,.tc .em > img{width:100%;height:100%;object-fit:contain}
+.tc .em .glyph{font-size:50cqw;line-height:1;font-family:"Segoe UI Symbol","Noto Sans Symbols 2","Apple Symbols",sans-serif}
+.tc .nm{position:absolute;left:8%;right:8%;bottom:6%;font:700 max(7px,10.5cqw) var(--font-body);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#4A3B20;z-index:2}
+.tc .badge{position:absolute;top:10%;right:9%;width:20%;height:20%;z-index:2;display:grid}
+.tc .badge > *{width:100%;height:100%;object-fit:contain}
+.tc.t-ship{background:var(--face,none) center/cover,linear-gradient(160deg,#F6E7B9,#D9BC74)}
+.tc.t-ship.none::before{background:linear-gradient(90deg,#8C6420,#E6B94E,#8C6420)}
+/* full-color art fills the card; numbers and name sit on little parchment chips */
+.tc.full .em{inset:7% 0 0 0}
+.tc.full .em > img{object-fit:cover}
+.tc.full .cn{background:rgba(243,232,204,.92);border-radius:22%;padding:3% 4%;top:10%;left:7%}
+.tc.full .cn.r{top:auto;left:auto;bottom:7%;right:7%}
+.tc.full .nm{left:6%;right:auto;max-width:58%;bottom:7%;background:rgba(243,232,204,.92);border-radius:999px;padding:1% 6%}
+.tc.full .badge{background:rgba(243,232,204,.92);border-radius:50%;padding:2%}
+
+.tc.back{background:var(--back,none) center/cover,radial-gradient(circle at 50% 50%,#1D4672,#0F2A48 70%);color:var(--gold);display:grid;place-items:center;
+  box-shadow:inset 0 0 0 max(2px,4cqw) #C9A04A,inset 0 0 0 max(3px,6cqw) #0F2A48,0 2px 0 rgba(0,0,0,.3),0 4px 10px rgba(0,0,0,.35)}
+.tc.back::before{display:none}
+.tc.back svg{width:72%;height:72%}
+button.tc{cursor:default}
+.tc.pick{cursor:pointer}
+.tt-cell .tc.back.pick:hover,.tt-cell .tc.back.pick:focus-visible{filter:brightness(1.25);box-shadow:inset 0 0 0 max(2px,4cqw) #FFE08A,0 0 0 3px #7FDBFF,0 6px 14px rgba(0,0,0,.4)}
+.tt-cell.target .tc{box-shadow:0 0 0 3px #7FDBFF,0 0 16px 3px rgba(127,219,255,.55)}
+.tt-cell.target .tc:hover{filter:brightness(1.08)}
+
+/* your hand */
+.tt-side{display:flex;flex-direction:column;gap:12px}
+.tt-hand{background:rgba(0,0,0,.25);border-radius:14px;padding:10px 12px;display:grid;gap:8px}
+.tt-hand .lbl{font-weight:700}
+.tt-hand .lbl small{font-weight:400;color:var(--soft);margin-left:6px}
+.tt-hand .cards{display:flex;flex-wrap:wrap;gap:8px;padding-top:4px}
+.tt-hand .tc{--w:84px;transition:transform .12s}
+.tt-hand button.tc{cursor:pointer}
+.tt-hand button.tc:hover{transform:translateY(-3px)}
+.tt-hand .tc.sel{transform:translateY(-6px);box-shadow:0 0 0 3px var(--gold),0 0 18px var(--gold)}
+.tt-hand .tc.can::after{content:"⚔";position:absolute;top:2%;right:4%;font:700 13cqw var(--font-body);color:#1B1606;z-index:3}
+.tt-hand .tc.full.can::after{background:var(--gold);border-radius:50%;width:22cqw;height:22cqw;display:grid;place-items:center;top:4%;right:4%}
+
+.tt-act{background:rgba(0,0,0,.28);border-radius:14px;padding:12px 14px;display:grid;gap:8px}
+.tt-act.mine{box-shadow:inset 0 0 0 2px var(--gold)}
+.tt-act h3{font-size:1.05rem}
+.tt-act p{margin:0}
+.tt-act .row{display:flex;gap:8px 10px;flex-wrap:wrap;align-items:center}
+.tt-last{color:var(--soft);font-size:.92rem}
+.tt-winner{font-family:var(--font-display);font-size:1.5rem;color:var(--gold);line-height:1.15}
+.tt-sum{width:100%;border-collapse:collapse;font-size:.95rem}
+.tt-sum th{font-size:.78rem;color:var(--soft);text-align:center;font-weight:700;padding:2px 4px}
+.tt-sum td{padding:6px 4px;border-top:1px solid rgba(168,189,216,.15);text-align:center;font-variant-numeric:tabular-nums}
+.tt-sum td.who{text-align:left;display:flex;align-items:center;gap:8px;font-weight:700}
+.tt-sum td.pl{color:var(--soft);font-family:var(--font-display)}
+.tt-sum tr.win td{color:var(--gold)}
+
+.tt-cycle{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;font-size:.82rem}
+.tt-cycle .f{display:inline-flex;align-items:center;gap:3px}
+.tt-cycle .f > svg,.tt-cycle .f > .ico,.tt-cycle .f > img{width:20px;height:20px;flex:none;object-fit:contain}
+.tt-cycle .ar{color:var(--soft);font-weight:700}
+.tt-legend{font-size:.85rem;color:var(--soft);padding:0 4px}
+.settings .tt-cycle b{filter:brightness(.85)}
+.tt-rules .ddbody .tt-cycle{margin-bottom:8px}
+.tt-log .ddbody li{margin-bottom:3px}
+
+@media (max-width:620px){
+  .tt{padding-inline:10px;border-radius:14px}
+  .s-left,.s-right{max-width:62px;padding:6px 3px}
+  .s-left .n,.s-right .n{font-size:.75rem;max-width:56px}
+  .tt-hand .tc{--w:64px}
+  .tt-table{gap:6px}
+}
+@media (prefers-reduced-motion: reduce){.tt-chart,.tt-rot{transition:none}.tt-cell.flash .tc{animation-duration:.01s}}
+
+/* computer: the game fills the window (hub.js adds .fitted and --fit-h) */
+.tt.fitted .tt-main{flex:1 1 0;min-height:0}
+.tt.fitted .tt-chart{width:min(100%,calc(var(--fit-h) - 170px))}
+.tt.fitted .tt-side{max-height:calc(var(--fit-h) - 70px);overflow:auto}

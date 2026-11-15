@@ -62,10 +62,25 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
+/* Art for The Turning Tide: every picture in its art folder, by name (emblem-tide, sign-1, back, ...). */
+function loadArt(dir, urlBase) {
+  const out = {};
+  try {
+    for (const f of fs.readdirSync(dir)) {
+      const m = f.match(/^([a-z0-9-]+)\.(svg|png|jpe?g|webp|gif)$/i);
+      if (m) out[m[1].toLowerCase()] = urlBase + f;
+    }
+  } catch (e) { /* no art yet */ }
+  return out;
+}
 const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
-  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') }
+  bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') },
+  tide: {
+    art: loadArt(path.join(PUBLIC, 'games', 'tide', 'art'), '/games/tide/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'tide', 'sounds'), '/games/tide/sounds/')
+  }
 };
 
 /* ---------- web server ---------- */

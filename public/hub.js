@@ -14,7 +14,7 @@ const GAME_LIST = [
     blurb: 'Five magic items, one card. Grab the right one before anyone else does.' },
   { id: 't7', name: 'The Triple Seven', players: '2+ players', ready: true,
     blurb: 'Keep your face-down cards low. Swap, peek, lock and steal. Three 7s is a perfect zero.' },
-  { id: 'tide', name: 'The Turning Tide', players: '2–4 players', ready: false,
+  { id: 'tide', name: 'The Turning Tide', players: '2–4 players', ready: true,
     blurb: 'Scout hidden waters, board rival ships and claim the most of the 4×4 chart. Tide beats Powder beats Gale beats Stone.' },
   { id: 'spell', name: 'Spellbound Mayhem 咒語大亂鬥', players: '2+ players', ready: true,
     blurb: '看得到別人的符石，卻看不到自己的。猜對就施放咒語，先到目標分數獲勝。' },
