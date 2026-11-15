@@ -103,12 +103,6 @@ function startTurn(g, pid) {
     g.ctx.fx({ type: 'silenced', pid });
     return nextTurn(g);
   }
-  const curser = g.status[pid].curse;
-  if (curser) {
-    log(g, { k: 'curse-tick', pid, by: curser });
-    damage(g, pid, 1, curser);
-    if (checkRoundEnd(g)) return;
-  }
   watchAway(g);
   g.ctx.broadcast();
 }
@@ -219,6 +213,7 @@ function pick(g, pid, p) {
         return { ok: true, hit: false };
       }
       damage(g, pid, 1, pid);
+      curseBite(g, pid);
       if (!checkRoundEnd(g)) endTurn(g);
       return { ok: true, hit: false };
     }
@@ -256,11 +251,20 @@ function pick(g, pid, p) {
   return { ok: false };
 }
 
+/* Curse: while cursed, every wrong guess costs one more life (credited to whoever cast the curse). */
+function curseBite(g, pid) {
+  const curser = g.status[pid].curse;
+  if (!curser || g.lives[pid] <= 0) return;
+  log(g, { k: 'curse-tick', pid, by: curser });
+  damage(g, pid, 1, curser);
+}
+
 function finishSpin(g) {
   const t = g.turn;
   if (g.phase !== 'play' || !t || t.step !== 'spin') return;
   g.timer = null;
   damage(g, t.pid, t.spin, t.pid);
+  curseBite(g, t.pid);
   t.spin = 0;
   if (!checkRoundEnd(g)) endTurn(g);
 }
@@ -342,5 +346,6 @@ module.exports = {
   id: 'spell', name: 'Spellbound Mayhem', minPlayers: 2,
   defaults, cleanSettings, canStart,
   start, stop, pick, view, playersChanged, playerJoined,
+  result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _startRound: startRound, _finishSpin: finishSpin // for tests
 };

@@ -67,7 +67,10 @@ function arm(act, id) { S.arm = { act, id: id || '', at: Date.now() }; render();
 /* A player's round avatar. data-avatar marks where their emotes float up from. */
 const HUES = [262, 8, 175, 38, 318, 125, 210, 345, 62, 290, 150, 22];
 function hueOf(pid) {
-  // Colors go round in the order people joined, so neighbours never look alike.
+  // A colour the player picked comes first.
+  const pl = S.st && S.st.players.find(p => p.pid === pid);
+  if (pl && Number.isInteger(pl.color)) return HUES[pl.color % HUES.length];
+  // Otherwise colors go round in the order people joined, so neighbours never look alike.
   const i = S.st ? S.st.players.findIndex(p => p.pid === pid) : -1;
   if (i >= 0) return HUES[i % HUES.length];
   let h = 0; for (const ch of String(pid)) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
@@ -96,7 +99,7 @@ socket.on('state', st => {
   render();
 });
 socket.on('goto', p => { if (p && typeof p.url === 'string' && p.url.startsWith('/')) location.href = p.url; });
-socket.on('emote', p => showEmote(p.pid, p.id));
+socket.on('emote', p => Shared.emotes.play(p.pid, p.id));
 socket.on('fx', fx => {
   const st = S.st;
   if (st && st.game && games[st.game.id] && games[st.game.id].fx) games[st.game.id].fx(fx, st.game, api);
@@ -120,7 +123,7 @@ function joined(code) {
 }
 async function join(code, name, quiet) {
   S.joining = true;
-  let res = await emit('join', { code, name, pid: PID, secret: SECRET });
+  let res = await emit('join', { code, name, pid: PID, secret: SECRET, color: myColor() });
   // The server restarted and forgot the room: bring it back with the same code.
   if (!res.ok && res.gone && S.st && S.st.code === code) {
     const st = S.st;
@@ -138,98 +141,15 @@ async function join(code, name, quiet) {
 }
 async function create(name) {
   S.joining = true; render();
-  const res = await emit('create', { name, pid: PID, secret: SECRET });
+  const res = await emit('create', { name, pid: PID, secret: SECRET, color: myColor(), prefs: savedPrefs() });
   S.joining = false;
   if (res.ok) joined(res.code);
   else S.homeError = res.error || 'Couldn’t start a room.';
   render();
 }
 
-/* ---------- emotes ---------- */
-function emoteFace(e) {
-  return e.src ? `<img src="${esc(e.src)}" alt="">` : esc(e.emoji || '🙂');
-}
-function renderEmoteBar() {
-  const bar = $('emotebar');
-  const show = !!S.st && S.catalog.emotes.length > 0;
-  bar.hidden = !show;
-  document.body.classList.toggle('inroom', show);
-  if (!show || $('emoteIn').childElementCount) return;
-  $('emoteIn').innerHTML = S.catalog.emotes.map(e =>
-    `<button type="button" data-act="emote" data-k="${esc(e.id)}" aria-label="${esc(e.label)}" data-label="${esc(e.label)}">${emoteFace(e)}<span class="elbl">${esc(e.label)}</span></button>`).join('');
-  // On phones the emotes sit behind a button that opens them all in a grid.
-  const first = S.catalog.emotes[0];
-  $('emoteToggle').innerHTML = `${first ? emoteFace(first) : ''}<span>Emotes</span>`;
-}
-/* Hovering an emote in the bar shows it large, with its name, until the mouse moves away. */
-function showPreview(b) {
-  const e = S.catalog.emotes.find(x => x.id === b.dataset.k);
-  if (!e || !e.src) return;
-  let p = $('emotePreview');
-  if (!p) { p = document.createElement('div'); p.id = 'emotePreview'; p.className = 'emotepreview'; p.setAttribute('aria-hidden', 'true'); document.body.appendChild(p); }
-  p.innerHTML = `<img src="${esc(e.src)}" alt=""><span>${esc(e.label)}</span>`;
-  const r = b.getBoundingClientRect();
-  const half = 100;
-  p.style.left = Math.min(window.innerWidth - half - 8, Math.max(half + 8, r.left + r.width / 2)) + 'px';
-  p.style.bottom = (window.innerHeight - r.top + 8) + 'px';
-  p.hidden = false;
-}
-function hidePreview() { const p = $('emotePreview'); if (p) p.hidden = true; }
-document.addEventListener('pointerover', e => {
-  if (e.pointerType !== 'mouse') return;
-  const b = e.target.closest && e.target.closest('#emoteIn button');
-  if (b) showPreview(b);
-});
-document.addEventListener('pointerout', e => {
-  const b = e.target.closest && e.target.closest('#emoteIn button');
-  if (b && !(e.relatedTarget && b.contains(e.relatedTarget))) hidePreview();
-});
-function closeEmotes() {
-  clearTimeout(S.emoteCloseT);
-  $('emotebar').classList.remove('open');
-  $('emoteToggle').setAttribute('aria-expanded', 'false');
-}
-// On phones the emote grid closes by itself when you tap anywhere else.
-document.addEventListener('pointerdown', e => {
-  if ($('emotebar').classList.contains('open') && !e.target.closest('#emotebar')) closeEmotes();
-}, true);
-function sendEmote(id) {
-  // ...and a few seconds after your last emote, so it never sits over the game.
-  clearTimeout(S.emoteCloseT);
-  S.emoteCloseT = setTimeout(closeEmotes, 3000);
-  const t = Date.now();
-  if (t - S.emoteAt < 650) return;
-  S.emoteAt = t;
-  const btns = $('emoteIn').querySelectorAll('button');
-  btns.forEach(b => b.classList.add('cool'));
-  setTimeout(() => btns.forEach(b => b.classList.remove('cool')), 650);
-  emit('emote', { id });
-}
-/* Float the emote up from above the player's avatar, wherever it is on screen right now. */
-function showEmote(pid, id) {
-  const e = S.catalog.emotes.find(x => x.id === id);
-  if (!e) return;
-  const els = [...document.querySelectorAll(`[data-avatar="${CSS.escape(pid)}"]`)].filter(el => el.offsetParent);
-  const layer = $('emotelayer');
-  let x, y;
-  if (els.length) {
-    const r = els[0].getBoundingClientRect();
-    // sit just above the avatar, bottom edge on its top
-    const h = window.innerWidth < 620 ? 140 : 190;
-    x = r.left + r.width / 2; y = r.top - h + 10;
-  } else {
-    x = window.innerWidth / 2; y = window.innerHeight / 2;
-  }
-  // Several emotes from the same player in a row fan out a little.
-  x += (Math.random() - 0.5) * 18;
-  const el = document.createElement('div');
-  el.className = 'floatemote';
-  el.innerHTML = emoteFace(e);
-  el.style.left = x + 'px';
-  el.style.top = Math.max(4, y) + 'px';
-  layer.appendChild(el);
-  setTimeout(() => el.remove(), 4400);
-}
+/* ---------- emotes (shared.js draws the bar and the floating emotes) ---------- */
+Shared.emotes.init(id => emit('emote', { id }));
 
 /* ---------- rendering ---------- */
 let toastTimer = null;
@@ -251,7 +171,10 @@ function keepFocus(container, fn) {
 
 function render() {
   renderNotice();
-  renderEmoteBar();
+  Shared.emotes.show(!!S.st);
+  Shared.keepAwake(!!(S.st && S.st.game)); // keep the phone screen on during a game
+  noticeMyMove();
+  rememberSettings();
   const st = S.st;
   const main = $('main');
   $('roomchip').innerHTML = st ? `Room <b>${esc(st.code)}</b>` : '';
@@ -353,6 +276,105 @@ function renderHome(main) {
   if (btn) btn.disabled = S.joining || !S.connected;
 }
 
+/* "Your turn" while you're in another tab or app: a chime and a flashing tab title. */
+function noticeMyMove() {
+  const st = S.st;
+  let msg = '';
+  if (st && st.game) {
+    const g = games[st.game.id];
+    msg = (g && g.myMove && g.myMove(st)) || '';
+    if (!S.hadGame) msg = msg || 'Game starting';
+  }
+  S.hadGame = !!(st && st.game);
+  if (msg && msg !== S.lastMove) Shared.attention(msg);
+  S.lastMove = msg;
+}
+
+/* ---------- fastest Fifth Element reactions tonight ---------- */
+function reactionBoard(st) {
+  const r = st.reactions || [];
+  if (!r.length) return '';
+  return `<section class="panel">
+    <header class="panel-head"><h2>⚡ Fastest reactions tonight</h2><span class="muted">The Fifth Element · each player’s best correct click</span></header>
+    <ol class="tally">${r.map((x, i) => `<li><span class="place">${i + 1}</span>${player(x.pid) ? avatar(x.pid, 30) : '<span></span>'}<span class="nm">${esc((player(x.pid) || {}).name || x.name)}</span><span class="wins">${(x.best / 1000).toFixed(2)}s</span></li>`).join('')}</ol>
+  </section>`;
+}
+
+/* ---------- tonight's results: wins per player, and the latest games ---------- */
+function scoreboard(st) {
+  const wins = st.wins || [];
+  if (!wins.length) return '';
+  const nameNow = x => (player(x.pid) || {}).name || x.name;
+  const tally = new Map();
+  for (const w of wins) for (const x of w.winners) {
+    const t = tally.get(x.pid) || { pid: x.pid, n: 0 };
+    t.n++; t.name = nameNow(x);
+    tally.set(x.pid, t);
+  }
+  const rows = [...tally.values()].sort((a, b) => b.n - a.n);
+  let place = 0, prev = null;
+  const recent = wins.slice(-8).reverse();
+  return `<section class="panel">
+    <header class="panel-head"><h2>Tonight’s scoreboard</h2><span class="muted">${wins.length} game${wins.length === 1 ? '' : 's'} played</span></header>
+    <div class="board">
+      <ol class="tally">${rows.map((r, i) => {
+        if (r.n !== prev) { place = i + 1; prev = r.n; }
+        return `<li><span class="place">${place}</span>${player(r.pid) ? avatar(r.pid, 30) : '<span></span>'}<span class="nm">${esc(r.name)}</span><span class="wins">${r.n} win${r.n === 1 ? '' : 's'}</span></li>`;
+      }).join('')}</ol>
+      <ul class="recent">${recent.map(w => `<li><b>${esc(w.name)}</b><span>${w.winners.length ? esc(w.winners.map(nameNow).join(' & ')) : 'no winner'}</span></li>`).join('')}</ul>
+    </div>
+  </section>`;
+}
+
+/* ---------- the host's settings, remembered for the next room they start ---------- */
+const savedPrefs = () => { try { return JSON.parse(store.get('gn.prefs') || 'null'); } catch (e) { return null; } };
+function rememberSettings() {
+  const st = S.st;
+  if (!st || !isHost()) return;
+  const json = JSON.stringify({ selected: st.selected, settings: st.settings });
+  if (json !== S.savedPrefs) { S.savedPrefs = json; store.set('gn.prefs', json); }
+}
+
+/* ---------- changing your name or avatar colour ---------- */
+// The colour you picked, remembered by this browser for the next room.
+const myColor = () => { const v = store.get('gn.color'); const c = Number(v); return v !== null && Number.isInteger(c) && c >= 0 && c < HUES.length ? c : undefined; };
+function openProfile() {
+  const st = S.st, me = player(st && st.you);
+  if (!me) return;
+  const old = $('profileDlg'); if (old) old.remove();
+  const cur = Number.isInteger(me.color) ? me.color : HUES.indexOf(hueOf(me.pid));
+  const d = document.createElement('div');
+  d.id = 'profileDlg';
+  d.className = 'dlg';
+  d.innerHTML = `<form class="dlgcard" id="profileForm">
+    <h2>You</h2>
+    <label class="field"><span class="label">Name</span><input id="pfName" maxlength="20" value="${esc(me.name)}" autocomplete="nickname"></label>
+    <div class="field"><span class="label">Avatar colour</span><div class="swatches">${HUES.map((h, i) =>
+      `<button type="button" class="sw" data-sw="${i}" style="--hue:${h}" aria-label="Colour ${i + 1}" aria-pressed="${i === cur}"></button>`).join('')}</div></div>
+    <div class="dlgrow"><button type="submit" class="btn primary">Save</button><button type="button" class="btn" data-close>Cancel</button></div>
+  </form>`;
+  document.body.appendChild(d);
+  let pick = cur;
+  d.addEventListener('click', e => {
+    const sw = e.target.closest('[data-sw]');
+    if (sw) { pick = Number(sw.dataset.sw); d.querySelectorAll('.sw').forEach(x => x.setAttribute('aria-pressed', String(x === sw))); }
+    if (e.target === d || e.target.closest('[data-close]')) d.remove();
+  });
+  d.addEventListener('keydown', e => { if (e.key === 'Escape') d.remove(); });
+  d.querySelector('form').addEventListener('submit', async e => {
+    e.preventDefault();
+    e.stopPropagation();
+    const name = String($('pfName').value || '').replace(/\s+/g, ' ').trim().slice(0, 20);
+    if (!name) { $('pfName').focus(); return; }
+    const r = await emit('profile', { name, color: pick });
+    if (!r.ok) { toast(r.error || 'Couldn’t save that.'); return; }
+    S.name = name; store.set('pd.name', name); store.set('gn.color', String(pick));
+    d.remove();
+  });
+  $('pfName').focus();
+  $('pfName').select();
+}
+
 /* room */
 function renderRoom(main, st) {
   S.built = 'room:' + st.code;
@@ -361,7 +383,10 @@ function renderRoom(main, st) {
   const crowd = st.players.map(p => {
     const kick = host && p.pid !== st.you
       ? `<button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
-    return `<li>${avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${p.pid === st.you ? 'you' : (p.connected ? '' : 'away')}${kick}</span></li>`;
+    const promote = host && p.pid !== st.you && p.connected
+      ? `<button type="button" class="linkbtn${armed('make-host', p.pid) ? ' armed' : ''}" data-act="make-host" data-k="${esc(p.pid)}">${armed('make-host', p.pid) ? 'make host?' : 'make host'}</button>` : '';
+    const mine = p.pid === st.you;
+    return `<li>${mine ? `<button type="button" class="avbtn" data-act="edit-me" title="Change your name or colour">${avatar(p.pid)}<span class="pen" aria-hidden="true">✎</span></button>` : avatar(p.pid)}<span class="nm">${esc(p.name)}</span><span class="sub">${mine ? '<button type="button" class="linkbtn" data-act="edit-me">you · edit</button>' : (p.connected ? '' : 'away')}${promote}${kick}</span></li>`;
   }).join('');
   const cards = GAME_LIST.map(g => `<button type="button" class="gcard" data-act="select" data-k="${g.id}" aria-pressed="${st.selected === g.id}" ${g.ready && host ? '' : 'disabled'}>
       <span class="tag">${g.ready ? esc(g.players) : 'Coming soon'}</span><h3>${esc(g.name)}</h3><p>${esc(g.blurb)}</p></button>`).join('');
@@ -380,12 +405,17 @@ function renderRoom(main, st) {
     main.innerHTML = `
     <section class="panel">
       ${st.pencils ? `<div class="banner"><strong>Pencils Down is open.</strong><a class="btn primary" href="/pencils-down/${esc(st.code)}">Go to Pencils Down</a>${host ? '<span class="muted">Or pick another game below to bring everyone back.</span>' : ''}</div>` : ''}
-      <header class="panel-head">
-        <div><div class="eyebrow">Room code</div><div class="code">${esc(st.code)}</div></div>
-        <button type="button" class="btn" data-act="copy">Copy invite link</button>
-      </header>
-      <div class="linkline" style="padding-top:14px"><code id="inviteLink">${esc(link)}</code></div>
+      <div class="invitebox">
+        <div class="invitetext">
+          <div class="eyebrow">Room code</div><div class="code">${esc(st.code)}</div>
+          <code id="inviteLink">${esc(link)}</code>
+          <div><button type="button" class="btn" data-act="copy">Copy invite link</button></div>
+        </div>
+        <figure class="qr"><img src="/qr/${esc(st.code)}.svg" alt="QR code for the invite link" width="132" height="132"><figcaption>Scan to join</figcaption></figure>
+      </div>
     </section>
+    ${scoreboard(st)}
+    ${reactionBoard(st)}
     <section class="panel">
       <header class="panel-head"><h2>In the room</h2><span class="muted">Tap an emote below to react</span></header>
       <ul class="crowd">${crowd}</ul>
@@ -414,13 +444,6 @@ document.addEventListener('click', async e => {
       catch (err) { const r = document.createRange(); r.selectNodeContents($('inviteLink')); const s = getSelection(); s.removeAllRanges(); s.addRange(r); toast('Link selected. Copy it to send to friends.'); }
       break;
     }
-    case 'emote': sendEmote(k); break;
-    case 'emote-toggle': {
-      const open = !$('emotebar').classList.contains('open');
-      $('emotebar').classList.toggle('open', open);
-      b.setAttribute('aria-expanded', String(open));
-      break;
-    }
     case 'select': st.selected = k; render(); emit('select', { game: k }); break;
     case 'start': {
       b.disabled = true;
@@ -428,6 +451,8 @@ document.addEventListener('click', async e => {
       if (!r.ok) { b.disabled = false; if (r.error) toast(r.error); }
       break;
     }
+    case 'edit-me': openProfile(); break;
+    case 'make-host': if (armed('make-host', k)) { S.arm = null; emit('makeHost', { pid: k }); } else arm('make-host', k); break;
     case 'kick': if (armed('kick', k)) { S.arm = null; emit('kick', { pid: k }); } else arm('kick', k); break;
     case 'toRoom': if (armed('toRoom')) { S.arm = null; emit('toRoom'); } else arm('toRoom'); break;
     case 'toRoomNow': b.disabled = true; emit('toRoom'); break;
@@ -488,7 +513,8 @@ return {
   registerGame(id, g) { games[id] = g; },
   boot() {
     render();
-    fetch('/catalog.json').then(r => r.json()).then(c => { S.catalog = c; $('emoteIn').innerHTML = ''; S.built = ''; render(); }).catch(() => {});
+    $('soundSlot').innerHTML = Shared.soundButtonHTML();
+    fetch('/catalog.json').then(r => r.json()).then(c => { S.catalog = c; Shared.emotes.set(c.emotes); S.built = ''; render(); }).catch(() => {});
   }
 };
 })();

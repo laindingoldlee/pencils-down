@@ -9,6 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Bungee&family=Kalam:wght@400;700&display=swap">
+<link rel="stylesheet" href="/shared.css">
 <style>
 /* Layout: a printed score pad. Ruled answer sheet with a red margin line on the left,
    the players' tally column beside it, the letter die and the round timer across the top. */
@@ -258,6 +259,7 @@ table.rounds{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nu
       <svg viewBox="0 0 44 44" aria-hidden="true"><circle class="t-bg" cx="22" cy="22" r="19"/><circle class="t-fg" id="timerArc" cx="22" cy="22" r="19"/></svg>
       <span id="timerNum">60</span>
     </div>
+    <span id="soundSlot"></span>
   </header>
   <div class="notice" id="notice" hidden></div>
   <div class="layout" id="layout">
@@ -268,6 +270,7 @@ table.rounds{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nu
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
 
 <script src="/socket.io/socket.io.js"></script>
+<script src="/shared.js"></script>
 <script>
 (() => {
 'use strict';
@@ -331,6 +334,11 @@ function listNames(names) {
 
 /* ---------- connection ---------- */
 const socket = io('/pd');
+/* Emotes, the sound switch, the new-round alert and keeping the screen on (shared.js). */
+Shared.emotes.init(id => socket.emit('emote', { id }, () => {}));
+socket.on('emote', p => Shared.emotes.play(p.pid, p.id));
+fetch('/catalog.json').then(r => r.json()).then(c => { Shared.emotes.set(c.emotes); render(); }).catch(() => {});
+document.getElementById('soundSlot').innerHTML = Shared.soundButtonHTML();
 socket.on('connect', () => {
   S.connected = true; S.everConnected = true;
   if (S.code && S.name && (S.joined || !S.st)) join(S.code, S.name, true);
@@ -444,6 +452,11 @@ function keepFocus(container, fn) {
 }
 
 function render() {
+  const live = !!(S.st && ['playing', 'collecting', 'review'].includes(S.st.phase));
+  Shared.emotes.show(!!S.st);
+  Shared.keepAwake(live);
+  // A new round started while you were in another tab or app.
+  if (S.st && S.st.phase === 'playing' && S.alertedRound !== S.st.round) { S.alertedRound = S.st.round; Shared.attention('New round: ' + S.st.letter); }
   renderNotice();
   renderBar();
   const st = S.st;
@@ -777,7 +790,7 @@ function renderSide(st) {
     else if (st.phase === 'lobby' && !p.connected) stat = '<span class="pstat">away</span>';
     const kick = host && p.pid !== st.you && st.phase !== 'final'
       ? ` <button type="button" class="linkbtn${armed('kick', p.pid) ? ' armed' : ''}" data-act="kick" data-k="${esc(p.pid)}">${armed('kick', p.pid) ? 'sure?' : 'remove'}</button>` : '';
-    return `<li><span class="dot${p.connected ? ' on' : ''}" title="${p.connected ? 'Here now' : 'Not connected'}"></span><span class="pname${p.connected ? '' : ' away'}">${esc(p.name)}${p.pid === st.you ? ' <small>(you)</small>' : ''}${p.pid === st.hostPid ? '<span class="badge">host</span>' : ''}${kick}</span>${stat}<span class="pscore">${st.phase === 'lobby' ? '' : p.score}</span></li>`;
+    return `<li><span class="dot${p.connected ? ' on' : ''}" title="${p.connected ? 'Here now' : 'Not connected'}"></span><span class="pname${p.connected ? '' : ' away'}" data-avatar="${esc(p.pid)}">${esc(p.name)}${p.pid === st.you ? ' <small>(you)</small>' : ''}${p.pid === st.hostPid ? '<span class="badge">host</span>' : ''}${kick}</span>${stat}<span class="pscore">${st.phase === 'lobby' ? '' : p.score}</span></li>`;
   }).join('');
   let actions = '';
   if (st.phase === 'lobby') {

@@ -16,6 +16,7 @@ const path = require('path');
 const http = require('http');
 const crypto = require('crypto');
 const express = require('express');
+const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 const pencilsDownServer = require('./games/pencils-down');
 const fifth = require('./games/fifth-element');
@@ -97,6 +98,15 @@ const app = express();
 app.disable('x-powered-by');
 app.get('/healthz', (req, res) => res.type('text').send('ok'));
 app.get('/catalog.json', (req, res) => { res.set('Cache-Control', 'no-cache'); res.json(CATALOG); });
+/* A QR code for a room's invite link, so friends in the same room can scan it. */
+app.get(/^\/qr\/([A-Za-z]{4})\.svg$/, (req, res) => {
+  const proto = String(req.headers['x-forwarded-proto'] || req.protocol || 'http').split(',')[0].trim();
+  const host = String(req.headers['x-forwarded-host'] || req.headers.host || '').split(',')[0].trim();
+  if (!/^[A-Za-z0-9.:-]{1,200}$/.test(host) || !/^https?$/.test(proto)) return res.status(400).end();
+  QRCode.toString(`${proto}://${host}/${req.params[0].toUpperCase()}`, { type: 'svg', margin: 1, errorCorrectionLevel: 'M', color: { dark: '#221A4D', light: '#FFFFFF' } })
+    .then(svg => { res.set('Cache-Control', 'public, max-age=3600'); res.type('image/svg+xml').send(svg); })
+    .catch(() => res.status(500).end());
+});
 app.use(express.static(PUBLIC, {
   maxAge: '5m',
   // Pages and scripts are always re-checked, so an update reaches everyone the next time they open the link.
@@ -121,7 +131,15 @@ const io = new Server(server, {
 
 /* ---------- helpers ---------- */
 const rooms = new Map();
-const pd = pencilsDownServer(io, { codeTaken: c => rooms.has(c) });
+const pd = pencilsDownServer(io, {
+  codeTaken: c => rooms.has(c),
+  emotes: EMOTES.map(e => e.id),
+  // A Pencils Down game opened from a party room counts toward the room's scoreboard.
+  onFinal: (code, winners, names) => {
+    const room = rooms.get(code);
+    if (room) { recordWin(room, 'pencils', winners, names); broadcast(room); }
+  }
+});
 const str = (v, max) => (typeof v === 'string' ? v : '').replace(/[\u0000-\u001f\u007f]/g, '').replace(/\s+/g, ' ').trim().slice(0, max);
 const isId = v => typeof v === 'string' && /^[a-z0-9]{8,32}$/.test(v);
 const safe = fn => (...args) => { try { return fn(...args); } catch (e) { console.error('Error:', e); } };
@@ -143,6 +161,8 @@ function makeRoom(code) {
     settings: Object.fromEntries(Object.entries(GAMES).map(([id, G]) => [id, G.defaults()])),
     game: null,          // a game being played inside the room
     pencils: false,      // a Pencils Down game was opened from this room
+    wins: [],            // tonight's results, for the room scoreboard
+    reactions: {},       // fastest Fifth Element reaction per player tonight
     hostTimer: null, lastActive: Date.now()
   };
   rooms.set(code, room);
@@ -154,16 +174,39 @@ function publicState(room, forPid) {
     code: room.code,
     you: forPid,
     hostPid: room.hostPid,
-    players: orderedPlayers(room).map(p => ({ pid: p.pid, name: p.name, connected: isOn(p) })),
+    players: orderedPlayers(room).map(p => ({ pid: p.pid, name: p.name, connected: isOn(p), color: p.color })),
     selected: room.selected,
     settings: room.settings,
     pencils: room.pencils,
+    wins: room.wins,
+    reactions: Object.values(room.reactions).sort((a, b) => a.best - b.best),
     game: room.game ? GAMES[room.game.id].view(room.game, forPid) : null,
     serverNow: Date.now()
   };
 }
+const GAME_NAMES = { pencils: 'Pencils Down', fifth: 'The Fifth Element', bw11: 'Black, White & Eleven', spell: 'Spellbound Mayhem', t7: 'The Triple Seven' };
+function recordWin(room, game, winners, names) {
+  room.wins.push({ game, name: GAME_NAMES[game] || game, at: Date.now(),
+    winners: winners.map(pid => ({ pid, name: (names && names[pid]) || (room.players.get(pid) || {}).name || 'Someone' })) });
+  if (room.wins.length > 60) room.wins.shift();
+}
 function broadcast(room) {
   room.lastActive = Date.now();
+  // A game that just finished goes on the room scoreboard, once.
+  const g = room.game;
+  if (g && !g.recorded && GAMES[g.id].result) {
+    const w = GAMES[g.id].result(g);
+    if (w) {
+      g.recorded = true;
+      recordWin(room, g.id, w);
+      // Fifth Element: keep each player's fastest reaction of the night.
+      if (g.id === 'fifth') for (const r of fifth.reactionStats(g)) {
+        const cur = room.reactions[r.pid];
+        const name = (room.players.get(r.pid) || {}).name || 'Someone';
+        if (!cur || r.best < cur.best) room.reactions[r.pid] = { pid: r.pid, name, best: r.best };
+      }
+    }
+  }
   for (const p of room.players.values()) {
     if (!p.sockets.size) continue;
     const st = publicState(room, p.pid);
@@ -266,6 +309,7 @@ io.on('connection', socket => {
     if (!pl.secret) pl.secret = secret;
     if (socket.data.code && (socket.data.code !== room.code || socket.data.pid !== pid)) detachSocket(socket);
     pl.name = name;
+    if (Number.isInteger(p.color) && p.color >= 0 && p.color < 12) pl.color = p.color;
     pl.leftAt = 0;
     pl.sockets.add(socket.id);
     socket.data.code = room.code;
@@ -284,6 +328,14 @@ io.on('connection', socket => {
     const code = newCode();
     if (!code) return reply({ ok: false, error: 'Couldn’t make a new room. Try again.' });
     const room = makeRoom(code);
+    // The host's settings from last time, remembered by their browser.
+    if (p.prefs && typeof p.prefs === 'object') {
+      if (ALL_GAMES.includes(p.prefs.selected)) room.selected = p.prefs.selected;
+      const ps = p.prefs.settings;
+      if (ps && typeof ps === 'object') for (const [id, G] of Object.entries(GAMES)) {
+        if (ps[id] && typeof ps[id] === 'object') { try { room.settings[id] = G.cleanSettings(ps[id], room.settings[id]); } catch (e) { /* keep defaults */ } }
+      }
+    }
     attach(room, p, reply);
     if (!room.players.size) rooms.delete(room.code);
   }, { noResync: true });
@@ -377,6 +429,14 @@ io.on('connection', socket => {
     broadcast(c.room);
   });
 
+  // The host ends the game being played now and shows its final result (games that support it).
+  on('endNow', (p, reply) => {
+    const c = ctx();
+    if (!c || !c.isHost || !c.room.game || !GAMES[c.room.game.id].endNow) return reply({ ok: false });
+    GAMES[c.room.game.id].endNow(c.room.game);
+    reply({ ok: true });
+  });
+
   on('toRoom', (p, reply) => {
     const c = ctx();
     if (!c || !c.isHost) return reply({ ok: false });
@@ -394,6 +454,31 @@ io.on('connection', socket => {
     io.to(c.room.code).emit('emote', { pid: c.me.pid, id: p.id });
     reply({ ok: true });
   }, { noResync: true });
+
+  // The host hands the host role to someone else in the room.
+  on('makeHost', (p, reply) => {
+    const c = ctx();
+    const target = c && c.room.players.get(p.pid);
+    if (!c || !c.isHost || !target || target.pid === c.me.pid || !isOn(target)) return reply({ ok: false });
+    c.room.hostPid = target.pid;
+    clearTimeout(c.room.hostTimer);
+    reply({ ok: true });
+    broadcast(c.room);
+  });
+
+  // Change your own name or avatar color.
+  on('profile', (p, reply) => {
+    const c = ctx();
+    if (!c) return reply({ ok: false });
+    if (p.name !== undefined) {
+      const name = str(p.name, 20);
+      if (!name) return reply({ ok: false, error: 'Type a name first.' });
+      c.me.name = name;
+    }
+    if (p.color !== undefined) c.me.color = Number.isInteger(p.color) && p.color >= 0 && p.color < 12 ? p.color : undefined;
+    reply({ ok: true });
+    broadcast(c.room);
+  });
 
   on('kick', (p, reply) => {
     const c = ctx();
