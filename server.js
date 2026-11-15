@@ -22,13 +22,14 @@ const fifth = require('./games/fifth-element');
 const bw11 = require('./games/black-white-eleven');
 const spell = require('./games/spellbound');
 const t7 = require('./games/triple-seven');
+const ember = require('./games/ember-crown');
 const cc = require('./games/countercurrent');
 
 const PORT = Number(process.env.PORT) || 3000;
 const PUBLIC = path.join(__dirname, 'public');
 
-const GAMES = { fifth, bw11, spell, t7, cc };                     // games played inside the room
-const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'cc']; // everything the host can pick
+const GAMES = { fifth, bw11, spell, t7, ember, cc };                       // games played inside the room
+const ALL_GAMES = ['pencils', 'fifth', 'bw11', 'spell', 't7', 'ember', 'cc']; // everything the host can pick
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; // no I or O, they look like 1 and 0
 const MAX_PLAYERS = 20;
 const MAX_ROOMS = 500;
@@ -62,13 +63,13 @@ function loadSounds(dir, urlBase) {
   } catch (e) { /* no sounds yet */ }
   return out;
 }
-/* Countercurrent's pictures, if any have been added (see the README for the names). */
+/* Pictures in a folder, by name without the extension (The Ember Crown and Countercurrent). */
 function loadArt(dir, urlBase) {
   const out = {};
   try {
     for (const f of fs.readdirSync(dir)) {
-      const m = f.match(/^([a-z0-9-]+)\.(png|webp|jpg|jpeg)$/i);
-      if (m) out[m[1].toLowerCase()] = urlBase + f;
+      const m = f.match(/^([a-z0-9-]+)\.(webp|png|jpe?g|svg|gif)$/i);
+      if (m && !out[m[1].toLowerCase()]) out[m[1].toLowerCase()] = urlBase + f;
     }
   } catch (e) { /* no art yet */ }
   return out;
@@ -77,6 +78,10 @@ const CATALOG = {
   emotes: EMOTES,
   fifth: { themes: fifth.THEMES, deckSizes: fifth.DECK_SIZES },
   bw11: { colors: bw11.COLORS, sounds: loadSounds(path.join(PUBLIC, 'games', 'bw11', 'sounds'), '/games/bw11/sounds/') },
+  ember: {
+    art: loadArt(path.join(PUBLIC, 'games', 'ember-crown', 'art'), '/games/ember-crown/art/'),
+    sounds: loadSounds(path.join(PUBLIC, 'games', 'ember-crown', 'sounds'), '/games/ember-crown/sounds/')
+  },
   cc: { art: loadArt(path.join(PUBLIC, 'games', 'countercurrent', 'art'), '/games/countercurrent/art/') }
 };
 
@@ -357,7 +362,7 @@ io.on('connection', socket => {
 
   on('again', (p, reply) => {
     const c = ctx();
-    if (!c || !c.isHost || !c.room.game || c.room.game.phase !== 'final') return reply({ ok: false });
+    if (!c || !c.isHost || !c.room.game || !['final', 'over'].includes(c.room.game.phase)) return reply({ ok: false });
     const id = c.room.game.id;
     endGame(c.room);
     c.room.game = GAMES[id].start(gameCtx(c.room), c.room.settings[id]);
