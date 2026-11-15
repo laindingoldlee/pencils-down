@@ -79,6 +79,21 @@
 .t7-sum .pl{font-family:var(--font-display);color:var(--soft);text-align:center}
 .t7-sum .pt{font-family:var(--font-display);color:var(--gold);font-size:1.15rem;white-space:nowrap}
 .t7-sum .pen{color:var(--bad);font-weight:700;font-size:.85rem}
+/* the round summary sits in front of the table's bottom seat when space is tight */
+.t7-act{position:relative;z-index:3;background:#1F150E}
+.pc.tiny{--w:30px;padding:2px 3px;grid-template-rows:auto 1fr}
+.pc.tiny .lbl,.pc.tiny .mid{display:none}
+.pc.tiny .corner{font-size:11px}
+.bdwho{display:grid;gap:4px;min-width:0}
+.bdrow{display:flex;align-items:center;flex-wrap:wrap;gap:4px}
+.bdcard{display:inline-grid;justify-items:center;gap:1px}
+.bdcard b{font-family:var(--font-display);font-size:.8rem;color:var(--gold);line-height:1}
+.bdplus{color:var(--soft);font-weight:700}
+.bdsum{font-family:var(--font-display);color:var(--gold);margin-left:4px;white-space:nowrap}
+.bdsum .pen{margin-left:8px;font-family:var(--font-body)}
+.bdcard.anim,.bdsum.anim{opacity:0;animation:bdflip .35s ease-out forwards}
+@keyframes bdflip{from{opacity:0;transform:rotateY(90deg) scale(.8)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion: reduce){.bdcard.anim,.bdsum.anim{animation-duration:.01s;animation-delay:0s!important}}
 .t7-winner{font-family:var(--font-display);font-size:clamp(1.5rem,5vw,2.4rem);color:var(--gold);line-height:1.05}
 
 .t7-log,.t7-rules{font-size:.9rem;color:var(--soft)}

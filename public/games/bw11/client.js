@@ -28,20 +28,29 @@ function settings(st) {
     <div class="seg" role="group" aria-labelledby="bwWildLbl">
       <button type="button" data-act="bw-wilds" data-k="0" aria-pressed="${!s.wilds}" ${host ? '' : 'disabled'}>Off</button>
       <button type="button" data-act="bw-wilds" data-k="1" aria-pressed="${!!s.wilds}" ${host ? '' : 'disabled'}>On</button></div></div>
-  <div class="setting stack"><span class="label">How to play</span>${rulesList(s.wilds)}</div>`;
+  <div class="setting"><span class="label" id="bwCapLbl">Most chips in a player’s pile<br><small class="muted" style="font-weight:400">The most tiles a called bluff can cost on top of the guessed one</small></span>
+    <div class="seg" role="group" aria-labelledby="bwCapLbl">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-act="bw-cap" data-k="${n}" aria-pressed="${(s.potCap || 3) === n}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div></div>
+  <div class="setting"><span class="label" id="bwStartLbl">Starting tiles<br><small class="muted" style="font-weight:400">How many tiles each player picks at the start</small></span>
+    <div class="seg" role="group" aria-labelledby="bwStartLbl">${[1, 2, 3, 4, 5, 6].map(n => `<button type="button" data-act="bw-set" data-k="startTiles|${n}" aria-pressed="${(s.startTiles || 3) === n}" ${host ? '' : 'disabled'}>${n}</button>`).join('')}</div></div>
+  <div class="setting"><span class="label" id="bwAnsLbl">Time to answer a guess<br><small class="muted" style="font-weight:400">After that the game answers truthfully for them</small></span>
+    <div class="seg" role="group" aria-labelledby="bwAnsLbl">${[15, 20, 30, 45, 60].map(n => `<button type="button" data-act="bw-set" data-k="answer|${n}" aria-pressed="${(s.answer || 30) === n}" ${host ? '' : 'disabled'}>${n}s</button>`).join('')}</div></div>
+  <div class="setting stack"><span class="label">How to play</span>${rulesList(s.wilds, s.startTiles || 3)}</div>`;
 }
-function rulesList(wilds) {
+function rulesList(wilds, start) {
+  start = start || 3;
   return `<ul class="rules">
     <li>Tiles are numbered 0 to 11. Everyone sees the color of every tile, but only you see your own numbers.</li>
     <li>Each row runs from smallest to largest. For the same number: black &lt; white &lt; blue &lt; red &lt; green &lt; yellow.</li>
-    <li>Start by picking the colors of your 3 tiles. On your turn, draw a tile (pick its color), then point at someone’s hidden tile and name its number${wilds ? ', or call it the wildcard' : ''}.</li>
-    <li>They answer Yes or No, and they may lie with a No. Accept it, and a chip goes into the <b>Liar’s Pot</b>. Or call the bluff: whoever was wrong flips as many of their tiles as there are chips in the pot.</li>
+    <li>Start by picking the colors of your ${start} tile${start === 1 ? '' : 's'}. On your turn, draw a tile (pick its color), then point at someone’s hidden tile and name its number${wilds ? ', or call it the wildcard' : ''}.</li>
+    <li>They answer Yes or No, and they may lie with a No. Accept it, and a chip goes on <b>their pile</b> (everyone starts at 0). Or call the bluff and their pile is at stake: if they lied, they flip the tile plus one more per chip; if they told the truth, you flip your drawn tile plus one per chip. Either way their pile goes back to 0.</li>
     <li>Right: the tile is flipped, and you can draw again and keep guessing, or stop. Wrong: flip the tile you just drew.</li>
     ${wilds ? '<li>A wildcard goes wherever you put it, once, and stays there. To flip it, someone has to guess “wild”.</li>' : ''}
     <li>Once every tile in your row is flipped, you’re out. Last one standing wins.</li>
   </ul>`;
 }
 H.on('bw-colors', (b, k) => { H.st.settings.bw11.colors = Number(k); H.render(); H.emit('settings', { game: 'bw11', patch: { colors: Number(k) } }); });
+H.on('bw-set', (b, k) => { const [key, v] = k.split('|'); H.st.settings.bw11[key] = Number(v); H.render(); H.emit('settings', { game: 'bw11', patch: { [key]: Number(v) } }); });
+H.on('bw-cap', (b, k) => { H.st.settings.bw11.potCap = Number(k); H.render(); H.emit('settings', { game: 'bw11', patch: { potCap: Number(k) } }); });
 H.on('bw-wilds', (b, k) => { H.st.settings.bw11.wilds = k === '1'; H.render(); H.emit('settings', { game: 'bw11', patch: { wilds: k === '1' } }); });
 
 /* ---------- moves ---------- */
@@ -117,9 +126,10 @@ function render(main, st) {
   if (L.sel && (!g.hands[L.sel.pid] || !g.hands[L.sel.pid].some(x => x.id === L.sel.id && !x.up))) L.sel = null;
 
   const canPickTiles = myTurn && t.step === 'guess';
-  const drawLive = (g.phase === 'setup' && playing && !g.mine && (g.hands[me] || []).length < 3) || (myTurn && t.step === 'draw');
+  const drawLive = (g.phase === 'setup' && playing && !g.mine && (g.hands[me] || []).length < (g.startTiles || 3)) || (myTurn && t.step === 'draw');
   const pile = g.pool.map((n, c) => `<button type="button" class="pilebtn${drawLive ? ' live' : ''}" data-act="bw-draw" data-k="${c}" ${drawLive && n ? '' : 'disabled'} aria-label="Draw a ${COLOR_NAMES[c]} tile (${n} left)"><span class="tile c${c} back"></span>${n}</button>`).join('');
-  const chips = Array.from({ length: Math.min(g.pot, 14) }, () => '<span class="chip"></span>').join('');
+  const pot = pid => (g.pots && g.pots[pid]) || 0;
+  const chipsOf = pid => `<span class="seatpot" title="Unchallenged Nos: ${pot(pid)} of ${g.potCap}"><span class="chips">${Array.from({ length: pot(pid) }, () => '<span class="chip"></span>').join('')}</span>${pot(pid)}</span>`;
 
   const others = g.order.filter(pid => pid !== me);
   const seat = (pid, isMe) => {
@@ -130,7 +140,7 @@ function render(main, st) {
       ? { slots: g.mine ? g.mine.slots : null }
       : { pickable: canPickTiles && !dead };
     return `<div class="bseat${t && t.pid === pid && g.phase === 'play' ? ' turn' : ''}${dead ? ' dead' : ''}${isMe ? ' me' : ''}">
-      <div class="who">${H.avatar(pid, 40)}<span class="nm">${esc(isMe ? 'You' : H.nameOf(pid))}<small>${esc(isMe && t && t.pid === me && g.phase === 'play' ? 'your turn' : status)}${kills ? ` · ${kills} kill${kills > 1 ? 's' : ''}` : ''}</small></span></div>
+      <div class="who">${H.avatar(pid, 40)}<span class="nm">${esc(isMe ? 'You' : H.nameOf(pid))}<small>${esc(isMe && t && t.pid === me && g.phase === 'play' ? 'your turn' : status)}${kills ? ` · ${kills} kill${kills > 1 ? 's' : ''}` : ''}</small></span>${dead ? '' : chipsOf(pid)}</div>
       ${rack(g, pid, st, opts)}</div>`;
   };
 
@@ -140,10 +150,10 @@ function render(main, st) {
       <div class="bw-top"><div class="bw-title">Black, White &amp; Eleven</div>
         <span class="bw-legend" title="Order for the same number">${legend}</span>
         ${H.dd('bw-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => `<li>${logLine(e, st)}</li>`).join('')}</ol>`, 'bw-log')}
-        ${H.dd('bw-rules', 'How to play', rulesList(g.wilds), 'bw-rules')}
+        ${H.dd('bw-rules', 'How to play', rulesList(g.wilds, g.startTiles), 'bw-rules')}
         ${H.isHost() && g.phase !== 'over' ? `<button type="button" class="linkbtn${H.armed('toRoom') ? ' armed' : ''}" data-act="toRoom">${H.armed('toRoom') ? 'Tap again to end' : 'End game'}</button>` : ''}</div>
       <div class="bw-table">
-        <div class="pot" title="Liar’s Pot"><span class="chips">${chips}</span><span><b>${g.pot}</b><small>Liar’s<br>Pot</small></span></div>
+        <div class="pothelp" title="Each player’s chips sit by their name">🪙 Chips sit by each player’s name · most ${g.potCap}</div>
         <div class="bw-pile" aria-label="Tiles left to draw">${g.poolLeft ? pile : '<span class="muted">No tiles left to draw</span>'}</div>
       </div>
       ${g.phase === 'over' ? overHTML(g, st) : actionHTML(g, st)}
@@ -166,9 +176,9 @@ function logLine(e, st) {
     case 'guess': {
       const what = `${p}: ${who(e.target, st)}${e.target === st.you ? 'r' : '’s'} ${ord(e.idx + 1)} tile (${COLOR_NAMES[e.c]}) is <b>${esc(valName(e.value))}</b>`;
       if (e.res === 'yes') return `${what} → <span class="good">Yes!</span>`;
-      if (e.res === 'accept') return `${what} → No. Accepted, pot now ${e.pot}.`;
-      if (e.res === 'caught') return `${what} → No… <span class="good">bluff caught!</span> ${who(e.target, st)} flip${e.target === st.you ? '' : 's'} ${e.stake} more.`;
-      if (e.res === 'truth') return `${what} → No… <span class="bad">it was true!</span> ${p} flip${e.pid === st.you ? '' : 's'} ${e.stake}.`;
+      if (e.res === 'accept') return `${what} → No. Accepted: ${who(e.target, st)}${e.target === st.you ? 'r' : '’s'} pile is now ${e.pot}.`;
+      if (e.res === 'caught') return `${what} → No… <span class="good">bluff caught!</span> ${who(e.target, st)} flip${e.target === st.you ? '' : 's'} it${e.stake ? ` and ${e.stake} more` : ''}.`;
+      if (e.res === 'truth') return `${what} → No… <span class="bad">it was true!</span> ${p} flip${e.pid === st.you ? '' : 's'} the drawn tile${e.stake ? ` and ${e.stake} more` : ''}.`;
       return what;
     }
   }
@@ -190,7 +200,8 @@ function actionHTML(g, st) {
     const left = Math.max(0, Math.ceil((g.setupEnds - H.now()) / 1000));
     if (!playing) return `<div class="bw-act"><h3>Everyone’s picking their starting tiles…</h3></div>`;
     if (g.mine) return `<div class="bw-act"><h3>You drew a ${g.mine.pending.n === -1 ? 'wildcard' : 'tile'}: ${tileHTML(g, me, Object.assign({ id: -1, up: false }, g.mine.pending), { mine: true })}</h3><p>Tap a <b>+</b> in your row to choose where it goes. ${g.mine.pending.n === -1 ? 'It stays there for the rest of the game.' : ''}</p></div>`;
-    if (mine.length < 3) return `<div class="bw-act"><h3>Pick the colors of your 3 starting tiles</h3><p>Tap a color above, ${3 - mine.length} more to go. You only see the number once it’s yours. <span class="muted" id="bwLeft">(${left}s)</span></p></div>`;
+    const need = g.startTiles || 3;
+    if (mine.length < need) return `<div class="bw-act"><h3>Pick the colors of your ${need} starting tile${need === 1 ? '' : 's'}</h3><p>Tap a color above, ${need - mine.length} more to go. You only see the number once it’s yours. <span class="muted" id="bwLeft">(${left}s)</span></p></div>`;
     return `<div class="bw-act"><h3>You’re ready.</h3><p class="muted">Waiting for everyone else to pick… <span id="bwLeft">(${left}s)</span></p></div>`;
   }
   if (!t) return '';
@@ -221,7 +232,7 @@ function actionHTML(g, st) {
   if (t.step === 'answer') {
     const gu = t.guess;
     const left = Math.max(0, t.answerEnds - H.now());
-    const bar = `<div class="timerbar"><span style="width:${(left / 30000 * 100).toFixed(1)}%"></span></div>`;
+    const bar = `<div class="timerbar"><span style="width:${(left / (g.answerMs || 30000) * 100).toFixed(1)}%"></span></div>`;
     if (gu.target === me) {
       return `<div class="bw-act"><p class="bigq">${turnName} says your ${tileName(g, me, gu.id)} is <b>${esc(valName(gu.value))}</b>.</p>
         ${gu.right
@@ -236,8 +247,9 @@ function actionHTML(g, st) {
     const defender = esc(H.nameOf(gu.target));
     if (myTurn) {
       return `<div class="bw-act"><p class="bigq">${defender} says <b>No</b>.</p>
-        <p>Believe them? Accepting adds a chip to the pot and you flip the tile you drew. Calling the bluff checks the tile: whoever’s wrong flips <b>${g.pot}</b> tile${g.pot > 1 ? 's' : ''}.</p>
-        <div class="row"><button type="button" class="btn" data-act="bw-accept">Accept</button><button type="button" class="btn danger" data-act="bw-call">Call the bluff! (${g.pot})</button></div></div>`;
+        <p>Believe them? Accepting adds a chip to ${defender}’s pile${(g.pots[gu.target] || 0) >= g.potCap ? ' (it’s already full)' : ''} and you flip the tile you drew.
+        Calling the bluff checks the tile: if they lied they flip it${(g.pots[gu.target] || 0) ? ` and ${g.pots[gu.target]} more` : ''}; if they told the truth you flip your drawn tile${(g.pots[gu.target] || 0) ? ` and ${g.pots[gu.target]} more` : ''}.</p>
+        <div class="row"><button type="button" class="btn" data-act="bw-accept">Accept</button><button type="button" class="btn danger" data-act="bw-call">Call the bluff! (${g.pots[gu.target] || 0} at stake)</button></div></div>`;
     }
     return `<div class="bw-act"><p class="bigq">${defender} says <b>No</b>.</p><p class="muted">${turnName === 'You' ? '' : `Will ${turnName} believe them?`}</p></div>`;
   }
@@ -292,7 +304,7 @@ function boom(level) {
     o.frequency.setValueAtTime(220 + level * 40, t0);
     o.frequency.exponentialRampToValueAtTime(40, t0 + 0.5);
     gn.gain.setValueAtTime(0.0001, t0);
-    gn.gain.exponentialRampToValueAtTime(0.35, t0 + 0.02);
+    gn.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.35 * Shared.volume()), t0 + 0.02);
     gn.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.6);
     o.connect(gn).connect(ctx.destination);
     o.start(t0); o.stop(t0 + 0.65);
@@ -301,7 +313,7 @@ function boom(level) {
       o2.type = 'square';
       o2.frequency.setValueAtTime(660 + i * 110, t0 + 0.12 * i);
       g2.gain.setValueAtTime(0.0001, t0 + 0.12 * i);
-      g2.gain.exponentialRampToValueAtTime(0.12, t0 + 0.12 * i + 0.01);
+      g2.gain.exponentialRampToValueAtTime(Math.max(0.0002, 0.12 * Shared.volume()), t0 + 0.12 * i + 0.01);
       g2.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.12 * i + 0.18);
       o2.connect(g2).connect(ctx.destination);
       o2.start(t0 + 0.12 * i); o2.stop(t0 + 0.12 * i + 0.2);
@@ -310,9 +322,10 @@ function boom(level) {
 }
 /* Play the recorded announcer line if there is one, otherwise the built-in boom. */
 function playKill(lvl, name) {
+  if (!Shared.soundOn()) return;
   const src = ((H.catalog.bw11 || {}).sounds || {})[name];
   if (!src) return boom(lvl);
-  try { const a = new Audio(src); a.play().catch(() => boom(lvl)); } catch (e) { boom(lvl); }
+  try { const a = new Audio(src); a.volume = Shared.volume(); a.play().catch(() => boom(lvl)); } catch (e) { boom(lvl); }
 }
 function fx(e, g) {
   const st = H.st;
@@ -333,12 +346,20 @@ function fx(e, g) {
     if (e.pid === st.you) sound = 'slain';
     setTimeout(() => { banner(big, small); playKill(lvl, sound); }, e.bluff ? 1500 : 350);
   } else if (e.type === 'bluff') {
-    if (e.caught) banner('BLUFF CAUGHT!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} ${e.stake} more`, true);
-    else banner('IT WAS TRUE!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} ${e.stake}`, true);
+    const extra = e.stake ? ` + ${e.stake} more` : '';
+    if (e.caught) banner('BLUFF CAUGHT!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} the tile${extra}`, true);
+    else banner('IT WAS TRUE!', `${esc(e.pid === st.you ? 'You flip' : H.nameOf(e.pid) + ' flips')} the drawn tile${extra}`, true);
   }
 }
 
 Hub.registerGame('bw11', {
+  myMove(st) {
+    const g = st.game, t = g.turn;
+    if (g.phase === 'setup' && g.order.includes(st.you) && !(g.setupDone || []).includes(st.you)) return 'Pick your tiles';
+    if (g.phase !== 'play' || !t) return '';
+    if (t.step === 'answer' && t.guess && t.guess.target === st.you) return 'Answer the guess';
+    return t.pid === st.you && t.step !== 'answer' ? 'Your turn' : '';
+  },
   title: 'Black, White & Eleven',
   settings,
   render,
@@ -349,7 +370,7 @@ Hub.registerGame('bw11', {
     if (!g) return;
     if (g.phase === 'setup' || (g.turn && g.turn.step === 'answer')) {
       const bar = document.querySelector('.bw .timerbar span');
-      if (g.turn && g.turn.step === 'answer' && bar) bar.style.width = (Math.max(0, g.turn.answerEnds - H.now()) / 30000 * 100).toFixed(1) + '%';
+      if (g.turn && g.turn.step === 'answer' && bar) bar.style.width = (Math.max(0, g.turn.answerEnds - H.now()) / (g.answerMs || 30000) * 100).toFixed(1) + '%';
     }
     if (g.phase === 'setup') H.setText('bwLeft', '(' + Math.max(0, Math.ceil((g.setupEnds - H.now()) / 1000)) + 's)');
   }

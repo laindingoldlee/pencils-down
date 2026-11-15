@@ -12,7 +12,7 @@ const SP = [null,
   { name: '孤注一擲', icon: '🎲', color: '#C0392B', short: '擲骰：2–6 其他所有人各失去 2 生命；擲到 1 你自己失去 2 生命。', extra: '小心：猜 1 卻沒有 1 的話，要轉 1・2・3 的輪盤，轉到幾就失去幾條生命。' },
   { name: '雙重吸取', icon: '🩸', color: '#8E2A5A', short: '選兩位玩家各失去 1 生命，你獲得 2 生命。' },
   { name: '鳳凰重生', icon: '🔥', color: '#D9731F', short: '本局下一次你會被擊倒時，改為保留 1 生命。' },
-  { name: '詛咒', icon: '💀', color: '#4B3B6B', short: '目標每個回合開始時失去 1 生命，直到他成功施放咒語。' },
+  { name: '詛咒', icon: '💀', color: '#4B3B6B', short: '被詛咒的人每猜錯一次，就多失去 1 生命，直到他成功施放咒語為止。' },
   { name: '沉默', icon: '🤫', color: '#3C6E8F', short: '目標跳過他的下一個回合。' },
   { name: '左右開弓', icon: '↔️', color: '#2E8C7A', short: '你左右兩邊的玩家各失去 1 生命。（只有兩人時，對手只失去 1 生命）' },
   { name: '左路突襲', icon: '⬅️', color: '#6B6F80', short: '你左邊的玩家失去 1 生命。' },
@@ -133,7 +133,7 @@ function stoneHTML(n, opts) {
   const id = o.id ? ` data-id="${o.id}"` : '';
   if (o.fog) return `<span class="stone back fogged"${id} title="迷霧中，看不到"><img src="${FOG_ART}" alt="迷霧"></span>`;
   if (n == null) return `<span class="stone back"${id} title="看不到"><span>?</span></span>`;
-  return `<span class="stone art${o.known ? ' known' : ''}"${id} title="${esc(describe(n))}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
+  return `<span class="stone art${o.known ? ' known' : ''}"${id} data-n="${n}"><img src="${ART(n)}" alt="${n}. ${esc(SP[n].name)}"></span>`;
 }
 function hearts(n, max) {
   let h = '';
@@ -221,7 +221,7 @@ function render(main, st) {
   const side = `<div class="sp-cast"><small>這局施放過</small>
         <div class="played">${SP.slice(1).map((sp, i) => {
           const n = i + 1, count = played[n], incoming = Math.min(count, L.landing[n] || 0);
-          return `<div class="prow" data-n="${n}" title="${esc(describe(n))}"><span class="pn">${n}</span><span class="pstones">${Array.from({ length: count }, (_, k) => `<img src="${ART(n)}" alt=""${k >= count - incoming ? ' class="incoming"' : ''}>`).join('')}</span></div>`;
+          return `<div class="prow" data-n="${n}"><span class="pn">${n}</span><span class="pstones">${Array.from({ length: count }, (_, k) => `<img src="${ART(n)}" alt=""${k >= count - incoming ? ' class="incoming"' : ''}>`).join('')}</span></div>`;
         }).join('')}</div></div>`;
   H.keepFocus(main, () => {
     main.innerHTML = `<section class="sp" lang="zh-Hant" aria-label="咒語大亂鬥">
@@ -242,7 +242,37 @@ function render(main, st) {
       ${actHTML(g, st)}
     </section>`;
   });
+  // After the page has sized the table (hub.js fits the game to the window), pull any seat
+  // that sticks out of the table back inside, so side seats never get cut off or slide under
+  // the cast-stones panel.
+  requestAnimationFrame(keepSeatsInside);
 }
+function keepSeatsInside() {
+  const round = document.querySelector('.sp .sp-round');
+  if (!round) return;
+  const sec = round.closest('section.sp');
+  const zoom = parseFloat(sec && sec.style.zoom) || 1;
+  const box = round.getBoundingClientRect();
+  const pad = 4;
+  for (const spot of round.querySelectorAll('.spspot')) {
+    spot.style.marginLeft = '0px';
+    spot.style.marginTop = '0px';
+    const r = spot.getBoundingClientRect();
+    let dx = 0, dy = 0;
+    if (r.width < box.width - 2 * pad) {
+      if (r.left < box.left + pad) dx = box.left + pad - r.left;
+      else if (r.right > box.right - pad) dx = box.right - pad - r.right;
+    }
+    if (r.height < box.height - 2 * pad) {
+      if (r.top < box.top + pad) dy = box.top + pad - r.top;
+      else if (r.bottom > box.bottom - pad) dy = box.bottom - pad - r.bottom;
+    }
+    if (dx) spot.style.marginLeft = (dx / zoom) + 'px';
+    if (dy) spot.style.marginTop = (dy / zoom) + 'px';
+  }
+}
+let spResizeT = null;
+window.addEventListener('resize', () => { clearTimeout(spResizeT); spResizeT = setTimeout(keepSeatsInside, 200); });
 
 function actHTML(g, st) {
   const me = st.you, t = g.turn;
@@ -323,7 +353,7 @@ function logLine(e, st) {
     case 'spin1': return `　→ 🎡 輪盤轉到 ${e.roll}，${p}失去 ${e.roll} 生命`;
     case 'phoenix': return `🔥 ${p}鳳凰重生，保住 1 生命！`;
     case 'dead': return `💀 ${p}倒下了${e.by ? `（${esc(nm(e.by, st))}）` : ''}`;
-    case 'curse-tick': return `💀 ${p}受到詛咒，失去 1 生命`;
+    case 'curse-tick': return `💀 ${p}受到詛咒，多失去 1 生命`;
     case 'silenced': return `🤫 ${p}被沉默，跳過回合`;
     case 'end': return `${p}結束回合`;
     case 'away': return `${p}不在，回合跳過`;
@@ -352,6 +382,40 @@ function spinWheel(roll, ms, who) {
   document.body.appendChild(el);
   setTimeout(() => el.remove(), (ms || 2600) + 1600);
 }
+
+/* ---------- card details on hover ----------
+   Hovering a visible stone (an opponent's, or one in the cast-stones panel) shows the card large
+   with what it does. On phones, tapping one does the same; tapping anywhere else hides it. */
+function hoverCard(n, anchor) {
+  let el = document.getElementById('spHover');
+  if (!el) { el = document.createElement('div'); el.id = 'spHover'; el.className = 'sp-hovercard'; el.setAttribute('lang', 'zh-Hant'); el.setAttribute('role', 'tooltip'); document.body.appendChild(el); }
+  const played = H.st && H.st.game && H.st.game.discard ? H.st.game.discard.filter(x => x === n).length : 0;
+  const total = H.st && H.st.game ? H.st.game.settings.copies[n - 1] : 0;
+  el.innerHTML = `<img src="${ART(n)}" alt=""><div class="txt"><b>${n}. ${esc(SP[n].name)}</b><span>${esc(SP[n].short)}</span>${SP[n].extra ? `<span class="extra">${esc(SP[n].extra)}</span>` : ''}<small>共 ${total} 顆 · 這局施放過 ${played} 顆</small></div>`;
+  el.hidden = false;
+  const r = anchor.getBoundingClientRect(), w = el.offsetWidth, h = el.offsetHeight;
+  let x = r.left + r.width / 2 - w / 2, y = r.top - h - 10;
+  if (y < 8) y = r.bottom + 10;
+  el.style.left = Math.max(8, Math.min(innerWidth - w - 8, x)) + 'px';
+  el.style.top = Math.max(8, Math.min(innerHeight - h - 8, y)) + 'px';
+}
+function hideHoverCard() { const el = document.getElementById('spHover'); if (el) el.hidden = true; }
+const hoverTarget = t => t.closest && (t.closest('.sp .spseat .stone.art[data-n]') || t.closest('.sp .sp-cast .prow[data-n]'));
+document.addEventListener('pointerover', e => {
+  if (e.pointerType !== 'mouse') return;
+  const a = hoverTarget(e.target);
+  if (a) hoverCard(Number(a.dataset.n), a);
+});
+document.addEventListener('pointerout', e => {
+  if (e.pointerType !== 'mouse') return;
+  const a = hoverTarget(e.target);
+  if (a && !(e.relatedTarget && a.contains(e.relatedTarget))) hideHoverCard();
+});
+document.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') return;
+  const a = hoverTarget(e.target);
+  if (a) hoverCard(Number(a.dataset.n), a); else hideHoverCard();
+}, true);
 
 /* ---------- calling a spell ----------
    1. a bubble pops out of the caller's seat with the spell they called;
@@ -469,6 +533,7 @@ function fx(e) {
 }
 
 Hub.registerGame('spell', {
+  myMove(st) { const t = st.game.turn; return st.game.phase === 'play' && t && t.pid === st.you ? '輪到你了' : ''; },
   title: '咒語大亂鬥',
   settings,
   render,

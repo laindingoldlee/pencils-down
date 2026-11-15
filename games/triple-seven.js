@@ -463,6 +463,25 @@ function bot(g, pid) {
   return randomly();
 }
 
+/* The host ends the game now: everyone's cards as they are right now are scored, and that's the final result. */
+function endNow(g) {
+  if (g.phase === 'over') return;
+  clear(g);
+  g.s.rounds = g.round;
+  if (g.phase === 'roundEnd') {
+    g.phase = 'over';
+    const best = Math.min(...g.order.map(p => g.totals[p]));
+    g.winners = g.order.filter(p => g.totals[p] === best);
+    g.summary = Object.assign({}, g.summary, { why: 'ended' });
+    g.ctx.broadcast();
+    return;
+  }
+  // The card in the hand of the player whose turn it was goes back on the pile: it isn't part of anyone's row.
+  if (g.turn && g.turn.drawn) { g.pile.unshift(g.turn.drawn); g.turn.drawn = null; }
+  g.called = null; // nobody gets a calling penalty when the host stops the game
+  endRound(g, 'ended');
+}
+
 function playersChanged(g) { if (g.phase === 'play') watchAway(g); }
 function playerJoined() { /* late arrivals watch until the next game */ }
 
@@ -498,6 +517,7 @@ function view(g, viewer) {
 module.exports = {
   id: 't7', name: 'The Triple Seven', minPlayers: 2,
   POWER_RANKS, defaults, cleanSettings, canStart,
-  start, stop, pick, view, playersChanged, playerJoined, bot,
+  start, stop, pick, view, playersChanged, playerJoined, endNow, bot,
+  result: g => (g.phase === 'over' ? (g.winners || []) : null),
   _startRound: startRound, value // for tests
 };
