@@ -40,7 +40,7 @@ In the room, everyone can tap emotes that float up above their avatar. The host 
 
 ## Countercurrent pictures
 
-The game draws simple stand-ins for everything, so it works with no pictures at all. To use your own art, put PNG, WebP or JPG files in `public/games/countercurrent/art/` with these names (any one of them can be left out):
+The retro sci-fi art set is already in `public/games/countercurrent/art/` (converted to WebP and resized to the sizes the game shows, about 560 KB in all). The game draws simple stand-ins for any picture that's missing. To replace a picture, put PNG, WebP or JPG files in `public/games/countercurrent/art/` with these names (any one of them can be left out):
 
 | File name | What it is | Suggested size |
 |---|---|---|

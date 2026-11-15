@@ -60,10 +60,21 @@ function markerIcon(kind, fallback) {
   const a = art()['marker-' + kind];
   return a ? `<span class="ccmask" style="--m:url('${esc(a)}')" aria-hidden="true"></span>` : `<span aria-hidden="true">${fallback}</span>`;
 }
+/* A marker in a player's own colour (the same colour as their avatar). */
+const hueOf = pid => ((H.avatar(pid).match(/--hue:(\d+)/) || [])[1] || '200');
+function teamMarker(kind, pid, fallback, extra) {
+  const a = art()['marker-' + kind];
+  const style = `--hue:${hueOf(pid)}`;
+  return a ? `<span class="ccmk ${extra || ''}" style="${style};--m:url('${esc(a)}')" aria-hidden="true"></span>`
+    : `<span class="ccmk none ${extra || ''}" style="${style}" aria-hidden="true">${fallback}</span>`;
+}
 function profileFace(p) {
   const a = art()['profile-' + p];
   if (a) return `<img class="ccprofimg" src="${esc(a)}" alt="">`;
-  if (p === SAME) return `<span class="ccpair same"><span class="ccdot any"></span><span class="eq">=</span><span class="ccdot any"></span></span>`;
+  if (p === SAME) {
+    if (art()['compound-crimson']) return `<span class="ccpair same four">${COLORS.map(c => dot(c)).join('')}</span>`;
+    return `<span class="ccpair same"><span class="ccdot any"></span><span class="eq">=</span><span class="ccdot any"></span></span>`;
+  }
   return `<span class="ccpair">${dot(PROFILES[p][0])}${dot(PROFILES[p][1])}</span>`;
 }
 
@@ -202,17 +213,17 @@ function render(main, st) {
     if (myTurn && p === g.field[me] && !(L.sel.tile === 'declare' && L.sel.profile != null)) cls.push('nope');
     if (L.mode === 'reply-claim' && !g.dead.includes(p) && !claimsOn(p).length) cls.push('pickable');
     if (p === right) cls.push('right');
-    const flags = claimsOn(p).map(c => `<span class="ccflag ${c.type}" title="${esc(nm(c.pid, st))} ${c.type === 'claim' ? 'claims' : 'backs'} this">${markerIcon('claim', c.type === 'claim' ? '🚩' : '🤝')}${H.avatar(c.pid, 18)}</span>`).join('');
+    const flags = claimsOn(p).map(c => `<span class="ccflag ${c.type}" title="${esc(nm(c.pid, st))} ${c.type === 'claim' ? 'claims' : 'backs'} this">${teamMarker('claim', c.pid, '🚩')}${c.type === 'back' ? '<small>back</small>' : ''}</span>`).join('');
     return `<button type="button" class="${cls.join(' ')}" data-act="cc-prof" data-k="${p}" ${tapProfile ? '' : 'disabled'} aria-label="${esc(pName(p))}${g.dead.includes(p) ? ', shown wrong' : ''}">
       ${profileFace(p)}<span class="ccpname">${esc(pName(p))}</span>
-      <span class="ccteams">${teams.map(pid => `<span class="ccfield" title="${esc(nm(pid, st))}’s Field Team">${H.avatar(pid, 20)}</span>`).join('')}</span>
+      <span class="ccteams">${teams.map(pid => `<span class="ccfield" title="${esc(nm(pid, st))}’s Field Team">${teamMarker('field', pid, '●')}</span>`).join('')}</span>
       ${flags ? `<span class="ccflags">${flags}</span>` : ''}
     </button>`;
   }).join('');
 
   // ---- the sealed formula ----
-  const formula = `<div class="ccformula${art().formula ? ' pic' : ''}"${art().formula ? ` style="--fbg:url('${esc(art().formula)}')"` : ''}>
-      <span class="cclabel">Sealed formula</span>
+  const formula = `<div class="ccformula">
+      ${art().formula ? `<img class="ccvault" src="${esc(art().formula)}" alt="">` : ''}<span class="cclabel">${g.formula ? 'The formula' : 'Sealed formula'}</span>
       <div class="ccrow">${g.formula ? g.formula.map(c => sampleCard(c, { size: 'mid' })).join('') : backCard({ size: 'mid' }) + backCard({ size: 'mid' })}</div>
     </div>`;
 
@@ -230,7 +241,7 @@ function render(main, st) {
     const traces = g.traces.filter(x => x.pid === pid);
     const pick = myTurn && L.sel.tile && L.sel.tile !== 'declare';
     const handBacks = reveal && g.hands ? COLORS.filter(c => g.hands[pid][c]).map(c => sampleCard(c, { size: 'tiny', n: g.hands[pid][c] })).join('') : '';
-    const inner = `${H.avatar(pid, 32)}<span class="ccnm">${esc(nm(pid, st))}${pid === g.firstPid ? ` <span class="ccfirst" title="First player this round">${markerIcon('first', '①')}</span>` : ''}
+    const inner = `${H.avatar(pid, 32)}<span class="ccnm">${teamMarker('field', pid, '●', 'inline')} ${esc(nm(pid, st))}${pid === g.firstPid ? ` <span class="ccfirst" title="First player this round">${markerIcon('first', '①')}</span>` : ''}
         <small>${g.counts[pid]} sample${g.counts[pid] === 1 ? '' : 's'} · ${g.marker[pid] ? `${markerIcon('claim', '🚩')} marker` : '<s>marker lost</s>'}${traces.length ? ` · ${traces.map(x => x.color ? dot(x.color, 10) : markerIcon('trace', '◆')).join('')}` : ''}</small></span>
       <span class="ccscore">${g.scores[pid]}</span>
       ${isTurn ? `<span class="ccbadge">${g.decl ? 'declared' : 'turn'}</span>` : ''}${answering ? '<span class="ccbadge ans">answering</span>' : ''}
@@ -241,13 +252,14 @@ function render(main, st) {
   };
 
   // ---- your hand ----
-  const hand = playing ? `<div class="cchand"><div class="ccmeline">${H.avatar(me, 34)}<span class="ccnm">You<small>${g.marker[me] ? `${markerIcon('claim', '🚩')} claim marker ready` : '<s>claim marker lost this round</s>'}${g.traces.filter(x => x.pid === me).map(x => ` · trace ${dot(x.color, 10)}`).join('')}</small></span><span class="ccscore">${g.scores[me]}</span></div>
+  const hand = playing ? `<div class="cchand"><div class="ccmeline">${H.avatar(me, 34)}<span class="ccnm">${teamMarker('field', me, '●', 'inline')} You<small>${g.marker[me] ? `${markerIcon('claim', '🚩')} claim marker ready` : '<s>claim marker lost this round</s>'}${g.traces.filter(x => x.pid === me).map(x => ` · trace ${dot(x.color, 10)}`).join('')}</small></span><span class="ccscore">${g.scores[me]}</span></div>
       <div class="ccrow">${COLORS.filter(c => g.hand[c]).map(c => sampleCard(c, { n: g.hand[c] })).join('') || '<span class="muted">No samples in hand</span>'}</div></div>` : '';
 
   const notesPanel = playing ? notesHTML(g, st, notes) : '';
 
   const html = `<section class="cc${art().table ? ' pic' : ''}" aria-label="Countercurrent"${art().table ? ` style="--tbg:url('${esc(art().table)}')"` : ''}>
-      <div class="cc-top"><div class="cc-title">${art().logo ? `<img src="${esc(art().logo)}" alt="Countercurrent">` : 'Countercurrent'}<small>Round ${g.round} · ${SET_NAME[g.settings.protocols]} · first to ${g.settings.target}</small></div>
+      ${art().logo ? `<div class="cc-emblem" style="--logo:url('${esc(art().logo)}')"><span>Countercurrent<small>The Pelagos Protocol</small></span></div>` : ''}
+      <div class="cc-top"><div class="cc-title">${art().logo ? '' : 'Countercurrent'}<small>Round ${g.round} · ${SET_NAME[g.settings.protocols]} · first to ${g.settings.target}</small></div>
         ${H.dd('cc-log', 'What happened', `<ol>${g.log.slice().reverse().map(e => logLine(e, st)).filter(Boolean).map(x => `<li>${x}</li>`).join('')}</ol>`, 'cc-log')}
         ${playing ? H.dd('cc-notes', 'Notes', notesPanel, 'cc-notesdd') : ''}
         ${H.dd('cc-rules', 'How to play', rulesList(g.settings), 'cc-rules')}
